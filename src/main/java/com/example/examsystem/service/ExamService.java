@@ -1,6 +1,7 @@
 package com.example.examsystem.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.example.examsystem.dto.ExamSubmitDTO;
 import com.example.examsystem.entity.Exam;
 
 import java.util.List;
@@ -12,6 +13,8 @@ public interface ExamService {
     void delete(Integer id);
 
     void update(Exam exam);
+
+    void submitExam(ExamSubmitDTO dto);
 
     Exam getById(Integer id);
 

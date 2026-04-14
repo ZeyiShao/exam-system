@@ -2,6 +2,7 @@ package com.example.examsystem.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.examsystem.common.Result;
+import com.example.examsystem.dto.ExamSubmitDTO;
 import com.example.examsystem.entity.Exam;
 import com.example.examsystem.service.ExamService;
 import org.springframework.web.bind.annotation.*;
@@ -56,4 +57,12 @@ public class ExamController {
         return Result.success("查询成功",
                 examService.page(pageNum, pageSize, examName, status));
     }
+
+    @PostMapping("/submit")
+    public Result<Void> submit(@RequestBody ExamSubmitDTO dto) {
+        examService.submitExam(dto);
+        return Result.success("交卷成功", null);
+    }
+
+
 }

@@ -3,24 +3,36 @@ package com.example.examsystem.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.examsystem.dto.ExamSubmitAnswerDTO;
+import com.example.examsystem.dto.ExamSubmitDTO;
 import com.example.examsystem.entity.ClassCourseTeacher;
 import com.example.examsystem.entity.ClassInfo;
 import com.example.examsystem.entity.Course;
 import com.example.examsystem.entity.Exam;
+import com.example.examsystem.entity.ExamAnswer;
+import com.example.examsystem.entity.ExamRecord;
 import com.example.examsystem.entity.Paper;
+import com.example.examsystem.entity.Question;
 import com.example.examsystem.entity.SysUser;
 import com.example.examsystem.mapper.ClassCourseTeacherMapper;
 import com.example.examsystem.mapper.ClassInfoMapper;
 import com.example.examsystem.mapper.CourseMapper;
+import com.example.examsystem.mapper.ExamAnswerMapper;
 import com.example.examsystem.mapper.ExamMapper;
+import com.example.examsystem.mapper.ExamRecordMapper;
 import com.example.examsystem.mapper.PaperMapper;
+import com.example.examsystem.mapper.PaperQuestionMapper;
+import com.example.examsystem.mapper.QuestionMapper;
 import com.example.examsystem.mapper.SysUserMapper;
 import com.example.examsystem.service.ExamService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ExamServiceImpl implements ExamService {
@@ -31,19 +43,31 @@ public class ExamServiceImpl implements ExamService {
     private final CourseMapper courseMapper;
     private final SysUserMapper sysUserMapper;
     private final ClassCourseTeacherMapper classCourseTeacherMapper;
+    private final ExamRecordMapper examRecordMapper;
+    private final QuestionMapper questionMapper;
+    private final ExamAnswerMapper examAnswerMapper;
+    private final PaperQuestionMapper paperQuestionMapper;
 
     public ExamServiceImpl(ExamMapper examMapper,
                            PaperMapper paperMapper,
                            ClassInfoMapper classInfoMapper,
                            CourseMapper courseMapper,
                            SysUserMapper sysUserMapper,
-                           ClassCourseTeacherMapper classCourseTeacherMapper) {
+                           ClassCourseTeacherMapper classCourseTeacherMapper,
+                           ExamRecordMapper examRecordMapper,
+                           QuestionMapper questionMapper,
+                           ExamAnswerMapper examAnswerMapper,
+                           PaperQuestionMapper paperQuestionMapper) {
         this.examMapper = examMapper;
         this.paperMapper = paperMapper;
         this.classInfoMapper = classInfoMapper;
         this.courseMapper = courseMapper;
         this.sysUserMapper = sysUserMapper;
         this.classCourseTeacherMapper = classCourseTeacherMapper;
+        this.examRecordMapper = examRecordMapper;
+        this.questionMapper = questionMapper;
+        this.examAnswerMapper = examAnswerMapper;
+        this.paperQuestionMapper = paperQuestionMapper;
     }
 
     @Override
@@ -210,5 +234,107 @@ public class ExamServiceImpl implements ExamService {
         if (exam.getStartTime().isBefore(LocalDateTime.now()) && !isUpdate) {
             throw new RuntimeException("新增考试时，开始时间不能早于当前时间");
         }
+    }
+
+    @Override
+    public void submitExam(ExamSubmitDTO dto) {
+        if (dto == null || dto.getRecordId() == null) {
+            throw new RuntimeException("考试记录ID不能为空");
+        }
+
+        ExamRecord record = examRecordMapper.selectById(dto.getRecordId());
+        if (record == null) {
+            throw new RuntimeException("考试记录不存在");
+        }
+
+        if ("FINISHED".equals(record.getStatus())) {
+            throw new RuntimeException("已经提交过试卷");
+        }
+
+        Exam exam = examMapper.selectById(record.getExamId());
+        if (exam == null) {
+            throw new RuntimeException("考试不存在");
+        }
+
+        Paper paper = paperMapper.selectById(exam.getPaperId());
+        if (paper == null) {
+            throw new RuntimeException("试卷不存在");
+        }
+
+        if (dto.getAnswerList() == null || dto.getAnswerList().isEmpty()) {
+            throw new RuntimeException("提交答案不能为空");
+        }
+
+        int totalScore = 0;
+
+        for (ExamSubmitAnswerDTO answerDTO : dto.getAnswerList()) {
+            if (answerDTO.getQuestionId() == null) {
+                throw new RuntimeException("题目ID不能为空");
+            }
+
+            Question question = questionMapper.selectById(answerDTO.getQuestionId());
+            if (question == null) {
+                throw new RuntimeException("题目不存在");
+            }
+
+            String userAnswer = answerDTO.getUserAnswer();
+            String correctAnswer = question.getCorrectAnswer();
+
+            boolean isCorrect = false;
+            int score = 0;
+
+            if (StringUtils.hasText(userAnswer)) {
+                if ("single".equals(question.getQuestionType()) || "judge".equals(question.getQuestionType())) {
+                    if (correctAnswer.equalsIgnoreCase(userAnswer.trim())) {
+                        isCorrect = true;
+                    }
+                } else if ("multiple".equals(question.getQuestionType())) {
+                    Set<String> userSet = new HashSet<>();
+                    for (String s : userAnswer.split(",")) {
+                        if (StringUtils.hasText(s)) {
+                            userSet.add(s.trim().toUpperCase());
+                        }
+                    }
+
+                    Set<String> correctSet = new HashSet<>();
+                    for (String s : correctAnswer.split(",")) {
+                        if (StringUtils.hasText(s)) {
+                            correctSet.add(s.trim().toUpperCase());
+                        }
+                    }
+
+                    if (userSet.equals(correctSet)) {
+                        isCorrect = true;
+                    }
+                }
+            }
+
+            Integer questionScore = paperQuestionMapper.getScoreByPaperIdAndQuestionId(exam.getPaperId(), question.getId());
+            if (questionScore == null) {
+                questionScore = 0;
+            }
+
+            if (isCorrect) {
+                score = questionScore;
+                totalScore += score;
+            }
+
+            ExamAnswer examAnswer = new ExamAnswer();
+            examAnswer.setRecordId(record.getId());
+            examAnswer.setQuestionId(question.getId());
+            examAnswer.setUserAnswer(userAnswer);
+            examAnswer.setCorrectAnswer(correctAnswer);
+            examAnswer.setIsCorrect(isCorrect);
+            examAnswer.setScore(score);
+
+            examAnswerMapper.insert(examAnswer);
+        }
+
+        record.setScore(totalScore);
+        record.setSubmitTime(LocalDateTime.now());
+        record.setStatus("FINISHED");
+        record.setIsPass(totalScore >= paper.getPassScore());
+
+        examRecordMapper.updateById(record);
     }
 }

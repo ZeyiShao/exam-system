@@ -3,6 +3,7 @@ package com.example.examsystem.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.dto.ExamSubmitAnswerDTO;
 import com.example.examsystem.dto.ExamSubmitDTO;
 import com.example.examsystem.entity.ClassCourseTeacher;
@@ -85,7 +86,7 @@ public class ExamServiceImpl implements ExamService {
     public void delete(Integer id) {
         Exam exam = examMapper.selectById(id);
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
         examMapper.deleteById(id);
     }
@@ -93,12 +94,12 @@ public class ExamServiceImpl implements ExamService {
     @Override
     public void update(Exam exam) {
         if (exam.getId() == null) {
-            throw new RuntimeException("考试ID不能为空");
+            throw new BusinessException("考试ID不能为空");
         }
 
         Exam oldExam = examMapper.selectById(exam.getId());
         if (oldExam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
 
         validateExam(exam, true);
@@ -114,7 +115,7 @@ public class ExamServiceImpl implements ExamService {
     public Exam getById(Integer id) {
         Exam exam = examMapper.selectById(id);
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
         return exam;
     }
@@ -150,59 +151,59 @@ public class ExamServiceImpl implements ExamService {
 
     private void validateExam(Exam exam, boolean isUpdate) {
         if (!StringUtils.hasText(exam.getExamName())) {
-            throw new RuntimeException("考试名称不能为空");
+            throw new BusinessException("考试名称不能为空");
         }
 
         if (exam.getPaperId() == null) {
-            throw new RuntimeException("试卷ID不能为空");
+            throw new BusinessException("试卷ID不能为空");
         }
 
         if (exam.getClassId() == null) {
-            throw new RuntimeException("班级ID不能为空");
+            throw new BusinessException("班级ID不能为空");
         }
 
         if (exam.getCourseId() == null) {
-            throw new RuntimeException("课程ID不能为空");
+            throw new BusinessException("课程ID不能为空");
         }
 
         if (exam.getTeacherId() == null) {
-            throw new RuntimeException("教师ID不能为空");
+            throw new BusinessException("教师ID不能为空");
         }
 
         if (exam.getStartTime() == null || exam.getEndTime() == null) {
-            throw new RuntimeException("开始时间和结束时间不能为空");
+            throw new BusinessException("开始时间和结束时间不能为空");
         }
 
         if (!exam.getStartTime().isBefore(exam.getEndTime())) {
-            throw new RuntimeException("开始时间必须早于结束时间");
+            throw new BusinessException("开始时间必须早于结束时间");
         }
 
         if (exam.getDuration() == null || exam.getDuration() <= 0) {
-            throw new RuntimeException("考试时长必须大于0");
+            throw new BusinessException("考试时长必须大于0");
         }
 
         Paper paper = paperMapper.selectById(exam.getPaperId());
         if (paper == null) {
-            throw new RuntimeException("试卷不存在");
+            throw new BusinessException("试卷不存在");
         }
 
         ClassInfo classInfo = classInfoMapper.selectById(exam.getClassId());
         if (classInfo == null) {
-            throw new RuntimeException("班级不存在");
+            throw new BusinessException("班级不存在");
         }
 
         Course course = courseMapper.selectById(exam.getCourseId());
         if (course == null) {
-            throw new RuntimeException("课程不存在");
+            throw new BusinessException("课程不存在");
         }
 
         SysUser teacher = sysUserMapper.selectById(exam.getTeacherId());
         if (teacher == null) {
-            throw new RuntimeException("教师不存在");
+            throw new BusinessException("教师不存在");
         }
 
         if (!"TEACHER".equals(teacher.getRole())) {
-            throw new RuntimeException("该用户不是教师");
+            throw new BusinessException("该用户不是教师");
         }
 
         LambdaQueryWrapper<ClassCourseTeacher> relationWrapper = new LambdaQueryWrapper<>();
@@ -212,7 +213,7 @@ public class ExamServiceImpl implements ExamService {
 
         Long relationCount = classCourseTeacherMapper.selectCount(relationWrapper);
         if (relationCount == null || relationCount == 0) {
-            throw new RuntimeException("该教师未负责此班级的该课程，不能创建考试");
+            throw new BusinessException("该教师未负责此班级的该课程，不能创建考试");
         }
 
         LambdaQueryWrapper<Exam> examWrapper = new LambdaQueryWrapper<>();
@@ -228,53 +229,53 @@ public class ExamServiceImpl implements ExamService {
 
         Long count = examMapper.selectCount(examWrapper);
         if (count != null && count > 0) {
-            throw new RuntimeException("相同时间的考试安排已存在");
+            throw new BusinessException("相同时间的考试安排已存在");
         }
 
         if (exam.getStartTime().isBefore(LocalDateTime.now()) && !isUpdate) {
-            throw new RuntimeException("新增考试时，开始时间不能早于当前时间");
+            throw new BusinessException("新增考试时，开始时间不能早于当前时间");
         }
     }
 
     @Override
     public void submitExam(ExamSubmitDTO dto) {
         if (dto == null || dto.getRecordId() == null) {
-            throw new RuntimeException("考试记录ID不能为空");
+            throw new BusinessException("考试记录ID不能为空");
         }
 
         ExamRecord record = examRecordMapper.selectById(dto.getRecordId());
         if (record == null) {
-            throw new RuntimeException("考试记录不存在");
+            throw new BusinessException("考试记录不存在");
         }
 
         if ("FINISHED".equals(record.getStatus())) {
-            throw new RuntimeException("已经提交过试卷");
+            throw new BusinessException("已经提交过试卷");
         }
 
         Exam exam = examMapper.selectById(record.getExamId());
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
 
         Paper paper = paperMapper.selectById(exam.getPaperId());
         if (paper == null) {
-            throw new RuntimeException("试卷不存在");
+            throw new BusinessException("试卷不存在");
         }
 
         if (dto.getAnswerList() == null || dto.getAnswerList().isEmpty()) {
-            throw new RuntimeException("提交答案不能为空");
+            throw new BusinessException("提交答案不能为空");
         }
 
         int totalScore = 0;
 
         for (ExamSubmitAnswerDTO answerDTO : dto.getAnswerList()) {
             if (answerDTO.getQuestionId() == null) {
-                throw new RuntimeException("题目ID不能为空");
+                throw new BusinessException("题目ID不能为空");
             }
 
             Question question = questionMapper.selectById(answerDTO.getQuestionId());
             if (question == null) {
-                throw new RuntimeException("题目不存在");
+                throw new BusinessException("题目不存在");
             }
 
             String userAnswer = answerDTO.getUserAnswer();

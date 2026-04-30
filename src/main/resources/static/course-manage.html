@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 220px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">课程管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">课程操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增课程</button>
+            <button class="btn btn-gray" onclick="loadCourseList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="toolbar">
+            <input class="input" id="searchKeyword" placeholder="输入课程名称或课程编号">
+            <button class="btn btn-primary" onclick="loadCourseList()">搜索</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title" id="formTitle">新增课程</div>
+
+        <input type="hidden" id="courseId">
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>课程名称</label>
+                <input class="input" id="courseName" placeholder="请输入课程名称">
+            </div>
+
+            <div class="form-item">
+                <label>课程编号</label>
+                <input class="input" id="courseCode" placeholder="例如：JAVA001">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveCourse()">保存课程</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">课程列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 90px;">ID</th>
+                <th>课程名称</th>
+                <th>课程编号</th>
+                <th style="width: 180px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="courseTableBody">
+            <tr>
+                <td colspan="4">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let courseList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有课程管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formTitle").textContent = "新增课程";
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("courseId").value = "";
+        document.getElementById("courseName").value = "";
+        document.getElementById("courseCode").value = "";
+        showMessage("");
+    }
+
+    function clearSearch() {
+        document.getElementById("searchKeyword").value = "";
+        loadCourseList();
+    }
+
+    function editCourse(id) {
+        const course = courseList.find(item => Number(item.id) === Number(id));
+
+        if (!course) {
+            showMessage("未找到课程数据");
+            return;
+        }
+
+        document.getElementById("formTitle").textContent = "编辑课程";
+        document.getElementById("courseId").value = course.id;
+        document.getElementById("courseName").value = course.courseName || "";
+        document.getElementById("courseCode").value = course.courseCode || "";
+
+        document.getElementById("formCard").classList.add("show");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function buildCourseData() {
+        const id = document.getElementById("courseId").value;
+        const courseName = document.getElementById("courseName").value.trim();
+        const courseCode = document.getElementById("courseCode").value.trim();
+
+        if (!courseName) {
+            showMessage("请输入课程名称");
+            return null;
+        }
+
+        if (!courseCode) {
+            showMessage("请输入课程编号");
+            return null;
+        }
+
+        const data = {
+            courseName: courseName,
+            courseCode: courseCode
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        return data;
+    }
+
+    async function saveCourse() {
+        const data = buildCourseData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/course", data)
+                : await post("/course", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadCourseList();
+        } catch (error) {
+            console.error("保存课程失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteCourse(id) {
+        const ok = confirm("确认删除该课程吗？如果课程已关联题目、班级或考试，可能会影响相关数据。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/course/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadCourseList();
+        } catch (error) {
+            console.error("删除课程失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadCourseList() {
+        const tbody = document.getElementById("courseTableBody");
+        tbody.innerHTML = `<tr><td colspan="4">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="4">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            const keyword = document.getElementById("searchKeyword").value.trim();
+
+            courseList = result.data || [];
+
+            if (keyword) {
+                courseList = courseList.filter(item =>
+                    (item.courseName || "").includes(keyword) ||
+                    (item.courseCode || "").includes(keyword)
+                );
+            }
+
+            if (courseList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4">暂无课程</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = courseList.map(course => `
+                <tr>
+                    <td>${course.id ?? ""}</td>
+                    <td>${course.courseName || ""}</td>
+                    <td>${course.courseCode || ""}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editCourse(${course.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteCourse(${course.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="4">无法连接后端</td></tr>`;
+        }
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+
+        loadCourseList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

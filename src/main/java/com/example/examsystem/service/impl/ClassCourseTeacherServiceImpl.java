@@ -1,6 +1,7 @@
 package com.example.examsystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.entity.ClassCourseTeacher;
 import com.example.examsystem.entity.ClassInfo;
 import com.example.examsystem.entity.Course;
@@ -44,20 +45,20 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
     public void add(Integer classId, Integer courseId, Long teacherId) {
         ClassInfo classInfo = classInfoMapper.selectById(classId);
         if (classInfo == null) {
-            throw new RuntimeException("班级不存在");
+            throw new BusinessException("班级不存在");
         }
 
         Course course = courseMapper.selectById(courseId);
         if (course == null) {
-            throw new RuntimeException("课程不存在");
+            throw new BusinessException("课程不存在");
         }
 
         SysUser teacher = sysUserMapper.selectById(teacherId);
         if (teacher == null) {
-            throw new RuntimeException("教师不存在");
+            throw new BusinessException("教师不存在");
         }
         if (!"TEACHER".equals(teacher.getRole())) {
-            throw new RuntimeException("该用户不是教师");
+            throw new BusinessException("该用户不是教师");
         }
 
         LambdaQueryWrapper<ClassCourseTeacher> wrapper = new LambdaQueryWrapper<>();
@@ -67,7 +68,7 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
 
         Long count = classCourseTeacherMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new RuntimeException("该班级课程教师关系已存在");
+            throw new BusinessException("该班级课程教师关系已存在");
         }
 
         ClassCourseTeacher relation = new ClassCourseTeacher();
@@ -94,7 +95,7 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
     public void delete(Integer id) {
         ClassCourseTeacher relation = classCourseTeacherMapper.selectById(id);
         if (relation == null) {
-            throw new RuntimeException("关系不存在");
+            throw new BusinessException("关系不存在");
         }
 
         classCourseTeacherMapper.deleteById(id);
@@ -122,7 +123,7 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
     public List<ClassCourseTeacherVO> getByClassId(Integer classId) {
         ClassInfo classInfo = classInfoMapper.selectById(classId);
         if (classInfo == null) {
-            throw new RuntimeException("班级不存在");
+            throw new BusinessException("班级不存在");
         }
         return classCourseTeacherMapper.selectByClassId(classId);
     }
@@ -131,10 +132,10 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
     public List<ClassCourseTeacherVO> getByTeacherId(Long teacherId) {
         SysUser teacher = sysUserMapper.selectById(teacherId);
         if (teacher == null) {
-            throw new RuntimeException("教师不存在");
+            throw new BusinessException("教师不存在");
         }
         if (!"TEACHER".equals(teacher.getRole())) {
-            throw new RuntimeException("该用户不是教师");
+            throw new BusinessException("该用户不是教师");
         }
         return classCourseTeacherMapper.selectByTeacherId(teacherId);
     }
@@ -143,7 +144,7 @@ public class ClassCourseTeacherServiceImpl implements ClassCourseTeacherService 
     public List<ClassCourseTeacherVO> getByCourseId(Integer courseId) {
         Course course = courseMapper.selectById(courseId);
         if (course == null) {
-            throw new RuntimeException("课程不存在");
+            throw new BusinessException("课程不存在");
         }
         return classCourseTeacherMapper.selectByCourseId(courseId);
     }

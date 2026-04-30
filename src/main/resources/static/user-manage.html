@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 180px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .role-tag {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 16px;
+            color: white;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .role-admin {
+            background: #f56c6c;
+        }
+
+        .role-teacher {
+            background: #409eff;
+        }
+
+        .role-student {
+            background: #67c23a;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">用户管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">用户操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增用户</button>
+            <button class="btn btn-gray" onclick="loadUserList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="toolbar">
+            <input class="input" id="searchUsername" placeholder="用户名搜索">
+
+            <select class="input" id="searchRole">
+                <option value="">全部角色</option>
+                <option value="ADMIN">管理员</option>
+                <option value="TEACHER">教师</option>
+                <option value="STUDENT">学生</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="loadUserList()">筛选</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title" id="formTitle">新增用户</div>
+
+        <input type="hidden" id="userId">
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>用户名</label>
+                <input class="input" id="username" placeholder="请输入用户名">
+            </div>
+
+            <div class="form-item">
+                <label>密码</label>
+                <input class="input" id="password" placeholder="请输入密码">
+            </div>
+
+            <div class="form-item">
+                <label>真实姓名</label>
+                <input class="input" id="realName" placeholder="请输入真实姓名">
+            </div>
+
+            <div class="form-item">
+                <label>角色</label>
+                <select class="input" id="role">
+                    <option value="STUDENT">学生</option>
+                    <option value="TEACHER">教师</option>
+                    <option value="ADMIN">管理员</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveUser()">保存用户</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">用户列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 80px;">ID</th>
+                <th>用户名</th>
+                <th>真实姓名</th>
+                <th style="width: 120px;">角色</th>
+                <th style="width: 180px;">创建时间</th>
+                <th style="width: 180px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="userTableBody">
+            <tr>
+                <td colspan="6">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let userList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有用户管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) {
+            return "";
+        }
+        return timeStr.replace("T", " ");
+    }
+
+    function getRoleText(role) {
+        switch (role) {
+            case "ADMIN":
+                return "管理员";
+            case "TEACHER":
+                return "教师";
+            case "STUDENT":
+                return "学生";
+            default:
+                return role || "未知";
+        }
+    }
+
+    function getRoleClass(role) {
+        switch (role) {
+            case "ADMIN":
+                return "role-admin";
+            case "TEACHER":
+                return "role-teacher";
+            case "STUDENT":
+                return "role-student";
+            default:
+                return "role-student";
+        }
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formTitle").textContent = "新增用户";
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("userId").value = "";
+        document.getElementById("username").value = "";
+        document.getElementById("password").value = "";
+        document.getElementById("realName").value = "";
+        document.getElementById("role").value = "STUDENT";
+        showMessage("");
+    }
+
+    function clearSearch() {
+        document.getElementById("searchUsername").value = "";
+        document.getElementById("searchRole").value = "";
+        loadUserList();
+    }
+
+    function editUser(id) {
+        const user = userList.find(item => Number(item.id) === Number(id));
+
+        if (!user) {
+            showMessage("未找到用户数据");
+            return;
+        }
+
+        document.getElementById("formTitle").textContent = "编辑用户";
+        document.getElementById("userId").value = user.id;
+        document.getElementById("username").value = user.username || "";
+        document.getElementById("password").value = "";
+        document.getElementById("realName").value = user.realName || "";
+        document.getElementById("role").value = user.role || "STUDENT";
+
+        document.getElementById("formCard").classList.add("show");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function buildUserData() {
+        const id = document.getElementById("userId").value;
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const realName = document.getElementById("realName").value.trim();
+        const role = document.getElementById("role").value;
+
+        if (!username) {
+            showMessage("请输入用户名");
+            return null;
+        }
+
+        if (!id && !password) {
+            showMessage("新增用户时请输入密码");
+            return null;
+        }
+
+        if (!realName) {
+            showMessage("请输入真实姓名");
+            return null;
+        }
+
+        if (!role) {
+            showMessage("请选择角色");
+            return null;
+        }
+
+        const data = {
+            username: username,
+            password: password,
+            realName: realName,
+            role: role
+        };
+
+        if (id) {
+            data.id = Number(id);
+
+            if (!password) {
+                const oldUser = userList.find(item => Number(item.id) === Number(id));
+                data.password = oldUser && oldUser.password ? oldUser.password : "";
+            }
+        }
+
+        return data;
+    }
+
+    async function saveUser() {
+        const data = buildUserData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/user/user/update", data)
+                : await post("/user/user/add", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadUserList();
+        } catch (error) {
+            console.error("保存用户失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteUser(id) {
+        if (Number(id) === Number(currentUser.id)) {
+            showMessage("不能删除当前登录账号");
+            return;
+        }
+
+        const ok = confirm("确认删除该用户吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/user/user/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadUserList();
+        } catch (error) {
+            console.error("删除用户失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadUserList() {
+        const tbody = document.getElementById("userTableBody");
+        tbody.innerHTML = `<tr><td colspan="6">加载中...</td></tr>`;
+        showMessage("");
+
+        const username = document.getElementById("searchUsername").value.trim();
+        const role = document.getElementById("searchRole").value;
+
+        const params = new URLSearchParams();
+        if (username) params.append("username", username);
+        if (role) params.append("role", role);
+
+        const url = params.toString()
+            ? "/user/list?" + params.toString()
+            : "/user/list";
+
+        try {
+            const result = await get(url);
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="6">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            userList = result.data || [];
+
+            if (userList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6">暂无用户</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = userList.map(user => `
+                <tr>
+                    <td>${user.id ?? ""}</td>
+                    <td>${user.username || ""}</td>
+                    <td>${user.realName || ""}</td>
+                    <td>
+                        <span class="role-tag ${getRoleClass(user.role)}">
+                            ${getRoleText(user.role)}
+                        </span>
+                    </td>
+                    <td>${formatTime(user.createTime)}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editUser(${user.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteUser(${user.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载用户列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="6">无法连接后端</td></tr>`;
+        }
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+
+        loadUserList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

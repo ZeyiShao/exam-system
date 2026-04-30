@@ -1,6 +1,7 @@
 package com.example.examsystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.entity.ClassInfo;
 import com.example.examsystem.entity.StudentClass;
 import com.example.examsystem.entity.SysUser;
@@ -32,15 +33,15 @@ public class StudentClassServiceImpl implements StudentClassService {
     public void add(Long studentId, Integer classId) {
         SysUser user = sysUserMapper.selectById(studentId);
         if (user == null) {
-            throw new RuntimeException("学生不存在");
+            throw new BusinessException("学生不存在");
         }
         if (!"STUDENT".equals(user.getRole())) {
-            throw new RuntimeException("该用户不是学生");
+            throw new BusinessException("该用户不是学生");
         }
 
         ClassInfo classInfo = classInfoMapper.selectById(classId);
         if (classInfo == null) {
-            throw new RuntimeException("班级不存在");
+            throw new BusinessException("班级不存在");
         }
 
         LambdaQueryWrapper<StudentClass> wrapper = new LambdaQueryWrapper<>();
@@ -49,7 +50,7 @@ public class StudentClassServiceImpl implements StudentClassService {
 
         Long count = studentClassMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new RuntimeException("该学生已加入此班级");
+            throw new BusinessException("该学生已加入此班级");
         }
 
         StudentClass studentClass = new StudentClass();
@@ -63,7 +64,7 @@ public class StudentClassServiceImpl implements StudentClassService {
     public void delete(Integer id) {
         StudentClass studentClass = studentClassMapper.selectById(id);
         if (studentClass == null) {
-            throw new RuntimeException("关系不存在");
+            throw new BusinessException("关系不存在");
         }
         studentClassMapper.deleteById(id);
     }

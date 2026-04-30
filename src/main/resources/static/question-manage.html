@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 180px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .full-row {
+            grid-column: span 2;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .option-cell {
+            text-align: left;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full-row {
+                grid-column: span 1;
+            }
+
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">题库管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">题目操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增题目</button>
+            <button class="btn btn-gray" onclick="loadQuestionList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="toolbar">
+            <input class="input" id="searchKeyword" placeholder="题目关键字">
+            <input class="input" id="searchCourse" placeholder="课程名称">
+            <select class="input" id="searchType">
+                <option value="">全部题型</option>
+                <option value="single">单选题</option>
+                <option value="multiple">多选题</option>
+                <option value="judge">判断题</option>
+            </select>
+            <select class="input" id="searchDifficulty">
+                <option value="">全部难度</option>
+                <option value="1">1 - 简单</option>
+                <option value="2">2 - 普通</option>
+                <option value="3">3 - 困难</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadQuestionList()">筛选</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title" id="formTitle">新增题目</div>
+
+        <input type="hidden" id="questionId">
+
+        <div class="form-grid">
+            <div class="form-item full-row">
+                <label>题目内容</label>
+                <textarea class="input" id="questionText" rows="3" placeholder="请输入题目内容"></textarea>
+            </div>
+
+            <div class="form-item">
+                <label>题型</label>
+                <select class="input" id="questionType" onchange="handleTypeChange()">
+                    <option value="single">单选题</option>
+                    <option value="multiple">多选题</option>
+                    <option value="judge">判断题</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>课程</label>
+                <input class="input" id="course" placeholder="例如：Java程序设计">
+            </div>
+
+            <div class="form-item">
+                <label>难度</label>
+                <select class="input" id="difficulty">
+                    <option value="1">1 - 简单</option>
+                    <option value="2">2 - 普通</option>
+                    <option value="3">3 - 困难</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>正确答案</label>
+                <input class="input" id="correctAnswer" placeholder="单选如 A，多选如 A,B，判断如 true/false">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 A</label>
+                <input class="input" id="optionA" placeholder="请输入选项A">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 B</label>
+                <input class="input" id="optionB" placeholder="请输入选项B">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 C</label>
+                <input class="input" id="optionC" placeholder="请输入选项C">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 D</label>
+                <input class="input" id="optionD" placeholder="请输入选项D">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveQuestion()">保存题目</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">题目列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 70px;">ID</th>
+                <th>题目内容</th>
+                <th style="width: 90px;">题型</th>
+                <th style="width: 120px;">课程</th>
+                <th style="width: 80px;">难度</th>
+                <th style="width: 120px;">正确答案</th>
+                <th style="width: 180px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="questionTableBody">
+            <tr>
+                <td colspan="7">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let questionList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有题库管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知";
+        }
+    }
+
+    function handleTypeChange() {
+        const type = document.getElementById("questionType").value;
+        const optionItems = document.querySelectorAll(".option-item");
+
+        if (type === "judge") {
+            optionItems.forEach(item => item.style.display = "none");
+            document.getElementById("optionA").value = "";
+            document.getElementById("optionB").value = "";
+            document.getElementById("optionC").value = "";
+            document.getElementById("optionD").value = "";
+            document.getElementById("correctAnswer").placeholder = "判断题请输入 true 或 false";
+        } else {
+            optionItems.forEach(item => item.style.display = "block");
+
+            if (type === "single") {
+                document.getElementById("correctAnswer").placeholder = "单选题请输入 A/B/C/D";
+            } else {
+                document.getElementById("correctAnswer").placeholder = "多选题请输入 A,B 这种格式";
+            }
+        }
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formTitle").textContent = "新增题目";
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("questionId").value = "";
+        document.getElementById("questionText").value = "";
+        document.getElementById("questionType").value = "single";
+        document.getElementById("course").value = "";
+        document.getElementById("difficulty").value = "1";
+        document.getElementById("correctAnswer").value = "";
+        document.getElementById("optionA").value = "";
+        document.getElementById("optionB").value = "";
+        document.getElementById("optionC").value = "";
+        document.getElementById("optionD").value = "";
+        showMessage("");
+        handleTypeChange();
+    }
+
+    function clearSearch() {
+        document.getElementById("searchKeyword").value = "";
+        document.getElementById("searchCourse").value = "";
+        document.getElementById("searchType").value = "";
+        document.getElementById("searchDifficulty").value = "";
+        loadQuestionList();
+    }
+
+    function editQuestion(id) {
+        const q = questionList.find(item => item.id === id);
+
+        if (!q) {
+            showMessage("未找到题目数据");
+            return;
+        }
+
+        document.getElementById("formTitle").textContent = "编辑题目";
+        document.getElementById("questionId").value = q.id;
+        document.getElementById("questionText").value = q.questionText || "";
+        document.getElementById("questionType").value = q.questionType || "single";
+        document.getElementById("course").value = q.course || "";
+        document.getElementById("difficulty").value = q.difficulty || 1;
+        document.getElementById("correctAnswer").value = q.correctAnswer || "";
+        document.getElementById("optionA").value = q.optionA || "";
+        document.getElementById("optionB").value = q.optionB || "";
+        document.getElementById("optionC").value = q.optionC || "";
+        document.getElementById("optionD").value = q.optionD || "";
+
+        handleTypeChange();
+        document.getElementById("formCard").classList.add("show");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function validateQuestion(data) {
+        if (!data.questionText) {
+            showMessage("请输入题目内容");
+            return false;
+        }
+
+        if (!data.questionType) {
+            showMessage("请选择题型");
+            return false;
+        }
+
+        if (!data.correctAnswer) {
+            showMessage("请输入正确答案");
+            return false;
+        }
+
+        if (!data.course) {
+            showMessage("请输入课程");
+            return false;
+        }
+
+        if (data.questionType !== "judge") {
+            if (!data.optionA || !data.optionB || !data.optionC || !data.optionD) {
+                showMessage("单选题和多选题需要填写 A、B、C、D 四个选项");
+                return false;
+            }
+        }
+
+        if (data.questionType === "single") {
+            const answer = data.correctAnswer.toUpperCase();
+            if (!["A", "B", "C", "D"].includes(answer)) {
+                showMessage("单选题正确答案只能是 A/B/C/D");
+                return false;
+            }
+            data.correctAnswer = answer;
+        }
+
+        if (data.questionType === "multiple") {
+            const answer = data.correctAnswer
+                .replaceAll("，", ",")
+                .split(",")
+                .map(item => item.trim().toUpperCase())
+                .filter(item => item);
+
+            const valid = answer.every(item => ["A", "B", "C", "D"].includes(item));
+
+            if (!valid || answer.length === 0) {
+                showMessage("多选题正确答案格式应为 A,B 或 A,C,D");
+                return false;
+            }
+
+            data.correctAnswer = answer.join(",");
+        }
+
+        if (data.questionType === "judge") {
+            const answer = data.correctAnswer.toLowerCase();
+
+            if (answer !== "true" && answer !== "false") {
+                showMessage("判断题正确答案只能填写 true 或 false");
+                return false;
+            }
+
+            data.correctAnswer = answer;
+            data.optionA = "";
+            data.optionB = "";
+            data.optionC = "";
+            data.optionD = "";
+        }
+
+        return true;
+    }
+
+    function buildQuestionData() {
+        const id = document.getElementById("questionId").value;
+
+        const data = {
+            questionText: document.getElementById("questionText").value.trim(),
+            optionA: document.getElementById("optionA").value.trim(),
+            optionB: document.getElementById("optionB").value.trim(),
+            optionC: document.getElementById("optionC").value.trim(),
+            optionD: document.getElementById("optionD").value.trim(),
+            correctAnswer: document.getElementById("correctAnswer").value.trim(),
+            questionType: document.getElementById("questionType").value,
+            difficulty: Number(document.getElementById("difficulty").value),
+            course: document.getElementById("course").value.trim(),
+            createUser: Number(currentUser.id)
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        if (!validateQuestion(data)) {
+            return null;
+        }
+
+        return data;
+    }
+
+    async function saveQuestion() {
+        const data = buildQuestionData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/question", data)
+                : await post("/question", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadQuestionList();
+        } catch (error) {
+            console.error("保存题目失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteQuestion(id) {
+        const ok = confirm("确认删除该题目吗？如果该题目已被试卷使用，可能会影响试卷内容。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/question/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadQuestionList();
+        } catch (error) {
+            console.error("删除题目失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadQuestionList() {
+        const tbody = document.getElementById("questionTableBody");
+        tbody.innerHTML = `<tr><td colspan="7">加载中...</td></tr>`;
+        showMessage("");
+
+        const keyword = document.getElementById("searchKeyword").value.trim();
+        const course = document.getElementById("searchCourse").value.trim();
+        const questionType = document.getElementById("searchType").value;
+        const difficulty = document.getElementById("searchDifficulty").value;
+
+        const params = new URLSearchParams();
+        params.append("pageNum", "1");
+        params.append("pageSize", "1000");
+
+        if (course) params.append("course", course);
+        if (questionType) params.append("questionType", questionType);
+        if (difficulty) params.append("difficulty", difficulty);
+        if (keyword) params.append("keyword", keyword);
+
+        try {
+            const result = await get("/question/page?" + params.toString());
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="7">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            questionList = result.data?.records || [];
+
+            if (questionList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7">暂无题目</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = questionList.map(q => `
+                <tr>
+                    <td>${q.id ?? ""}</td>
+                    <td style="text-align:left;">${q.questionText || ""}</td>
+                    <td>${getQuestionTypeText(q.questionType)}</td>
+                    <td>${q.course || ""}</td>
+                    <td>${q.difficulty ?? ""}</td>
+                    <td>${q.correctAnswer || ""}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editQuestion(${q.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteQuestion(${q.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载题目列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="7">无法连接后端</td></tr>`;
+        }
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        handleTypeChange();
+        loadQuestionList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

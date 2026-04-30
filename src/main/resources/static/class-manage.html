@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 220px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">班级管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">班级操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增班级</button>
+            <button class="btn btn-gray" onclick="loadClassList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="toolbar">
+            <input class="input" id="searchKeyword" placeholder="输入班级名称搜索">
+            <button class="btn btn-primary" onclick="loadClassList()">搜索</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title" id="formTitle">新增班级</div>
+
+        <input type="hidden" id="classId">
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>班级名称</label>
+                <input class="input" id="className" placeholder="例如：软件工程221班">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveClass()">保存班级</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">班级列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 90px;">ID</th>
+                <th>班级名称</th>
+                <th style="width: 180px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="classTableBody">
+            <tr>
+                <td colspan="3">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let classList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有班级管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formTitle").textContent = "新增班级";
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("classId").value = "";
+        document.getElementById("className").value = "";
+        showMessage("");
+    }
+
+    function clearSearch() {
+        document.getElementById("searchKeyword").value = "";
+        loadClassList();
+    }
+
+    function editClass(id) {
+        const cls = classList.find(item => Number(item.id) === Number(id));
+
+        if (!cls) {
+            showMessage("未找到班级数据");
+            return;
+        }
+
+        document.getElementById("formTitle").textContent = "编辑班级";
+        document.getElementById("classId").value = cls.id;
+        document.getElementById("className").value = cls.className || "";
+
+        document.getElementById("formCard").classList.add("show");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function buildClassData() {
+        const id = document.getElementById("classId").value;
+        const className = document.getElementById("className").value.trim();
+
+        if (!className) {
+            showMessage("请输入班级名称");
+            return null;
+        }
+
+        const data = {
+            className: className
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        return data;
+    }
+
+    async function saveClass() {
+        const data = buildClassData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/class", data)
+                : await post("/class", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadClassList();
+        } catch (error) {
+            console.error("保存班级失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteClass(id) {
+        const ok = confirm("确认删除该班级吗？如果班级已关联学生、课程或考试，可能会影响相关数据。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/class/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadClassList();
+        } catch (error) {
+            console.error("删除班级失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadClassList() {
+        const tbody = document.getElementById("classTableBody");
+        tbody.innerHTML = `<tr><td colspan="3">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/class/list");
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="3">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            const keyword = document.getElementById("searchKeyword").value.trim();
+
+            classList = result.data || [];
+
+            if (keyword) {
+                classList = classList.filter(item =>
+                    (item.className || "").includes(keyword)
+                );
+            }
+
+            if (classList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3">暂无班级</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = classList.map(cls => `
+                <tr>
+                    <td>${cls.id ?? ""}</td>
+                    <td>${cls.className || ""}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editClass(${cls.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="deleteClass(${cls.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载班级列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="3">无法连接后端</td></tr>`;
+        }
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+
+        loadClassList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

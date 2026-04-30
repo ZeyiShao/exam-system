@@ -8,6 +8,9 @@ import com.example.examsystem.service.ExamRecordService;
 import com.example.examsystem.vo.ExamSubmitResultVO;
 import com.example.examsystem.vo.StudentExamDetailVO;
 import org.springframework.web.bind.annotation.*;
+import com.example.examsystem.vo.ExamRecordVO;
+import com.example.examsystem.vo.ExamRecordTeacherVO;
+import com.example.examsystem.vo.ExamStatisticsVO;
 
 import java.util.List;
 
@@ -43,12 +46,17 @@ public class ExamRecordController {
     }
 
     @GetMapping("/student/{studentId}")
-    public Result<List<ExamRecord>> getByStudentId(@PathVariable Long studentId) {
+    public Result<List<ExamRecordVO>> getByStudentId(@PathVariable Long studentId) {
         return Result.success("查询成功", examRecordService.getByStudentId(studentId));
     }
 
     @GetMapping("/exam/{examId}")
-    public Result<List<ExamRecord>> getByExamId(@PathVariable Integer examId) {
+    public Result<List<ExamRecordTeacherVO>> getByExamId(@PathVariable Integer examId) {
         return Result.success("查询成功", examRecordService.getByExamId(examId));
+    }
+
+    @GetMapping("/statistics/{examId}")
+    public Result<ExamStatisticsVO> getStatisticsByExamId(@PathVariable Integer examId) {
+        return Result.success("查询成功", examRecordService.getStatisticsByExamId(examId));
     }
 }

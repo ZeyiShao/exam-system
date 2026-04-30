@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试详情 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box { display: flex; gap: 16px; align-items: center; font-size: 14px; }
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .info-item { background: #f8fbff; border: 1px solid #e6f1fc; border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+        .info-label { color: #666; margin-bottom: 6px; }
+        .info-value { font-weight: bold; color: #303133; }
+        .status-tag { padding: 6px 12px; border-radius: 16px; color: white; font-size: 12px; white-space: nowrap; display: inline-block; }
+        .status-not { background: #409eff; }
+        .status-doing { background: #e6a23c; }
+        .status-finished { background: #67c23a; }
+        .question-card { border: 1px solid #ebeef5; border-radius: 10px; padding: 16px; margin-bottom: 14px; background: #fcfcfd; }
+        .question-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 10px; }
+        .question-title { font-size: 16px; font-weight: bold; line-height: 1.7; }
+        .score-tag { background: #e6a23c; color: white; padding: 5px 12px; border-radius: 16px; font-size: 13px; white-space: nowrap; }
+        .question-meta { color: #666; font-size: 13px; margin-bottom: 10px; }
+        .option-list { line-height: 1.9; font-size: 14px; }
+        .answer { margin-top: 8px; color: #67c23a; font-weight: bold; }
+        .empty { text-align: center; color: #999; padding: 30px 0; }
+
+        @media (max-width: 800px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .question-header { flex-direction: column; }
+            .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">考试详情</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="actions">
+            <button class="btn btn-gray" onclick="goBack()">返回考试管理</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+            <button class="btn btn-primary" onclick="goEdit()">编辑考试</button>
+        </div>
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">考试基本信息</div>
+        <div id="examInfo">加载中...</div>
+    </div>
+
+    <div class="card">
+        <div class="title">关联试卷信息</div>
+        <div id="paperInfo">加载中...</div>
+    </div>
+
+    <div class="card">
+        <div class="title">试卷题目内容</div>
+        <div id="questionList">加载中...</div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let examId = null;
+    let examDetail = null;
+    let paperDetail = null;
+
+    let paperList = [];
+    let classList = [];
+    let courseList = [];
+    let userList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) return null;
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有查看考试详情权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function getIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("id");
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) return "";
+        return timeStr.replace("T", " ");
+    }
+
+    function goBack() {
+        window.location.href = "exam-manage.html";
+    }
+
+
+    function goEdit() {
+        if (!examId) {
+            showMessage("缺少考试ID，无法编辑");
+            return;
+        }
+
+        window.location.href = "exam-edit.html?id=" + examId;
+    }
+
+    async function loadBaseData() {
+        try {
+            const [paperRes, classRes, courseRes, userRes] = await Promise.all([
+                get("/paper/list"),
+                get("/class/list"),
+                get("/course/list"),
+                get("/user/list")
+            ]);
+
+            if (paperRes.code === 200) paperList = paperRes.data || [];
+            if (classRes.code === 200) classList = classRes.data || [];
+            if (courseRes.code === 200) courseList = courseRes.data || [];
+            if (userRes.code === 200) userList = userRes.data || [];
+        } catch (error) {
+            console.error("加载名称映射数据失败：", error);
+            showMessage("部分名称数据加载失败，可能显示ID");
+        }
+    }
+
+    function getPaperName(id) {
+        const item = paperList.find(p => Number(p.id) === Number(id));
+        return item ? item.paperName : "ID：" + id;
+    }
+
+    function getClassName(id) {
+        const item = classList.find(c => Number(c.id) === Number(id));
+        return item ? item.className : "ID：" + id;
+    }
+
+    function getCourseName(id) {
+        const item = courseList.find(c => Number(c.id) === Number(id));
+        return item ? item.courseName : "ID：" + id;
+    }
+
+    function getUserName(id) {
+        const item = userList.find(u => Number(u.id) === Number(id));
+        return item ? (item.realName || item.username) : "ID：" + id;
+    }
+
+    function getRealExamStatus(exam) {
+        if (!exam.startTime || !exam.endTime) {
+            return exam.status || "UNKNOWN";
+        }
+
+        const now = new Date();
+        const start = new Date(exam.startTime.replace("T", " "));
+        const end = new Date(exam.endTime.replace("T", " "));
+
+        if (now < start) return "NOT_STARTED";
+        if (now > end) return "FINISHED";
+        return "ONGOING";
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "NOT_STARTED": return "未开始";
+            case "ONGOING":
+            case "DOING": return "进行中";
+            case "FINISHED": return "已结束";
+            default: return status || "未知";
+        }
+    }
+
+    function getStatusClass(status) {
+        switch (status) {
+            case "NOT_STARTED": return "status-not";
+            case "ONGOING":
+            case "DOING": return "status-doing";
+            case "FINISHED": return "status-finished";
+            default: return "status-not";
+        }
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single": return "单选题";
+            case "multiple": return "多选题";
+            case "judge": return "判断题";
+            default: return type || "未知题型";
+        }
+    }
+
+    async function loadExamDetail() {
+        try {
+            const result = await get("/exam/" + examId);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "加载考试详情失败");
+                document.getElementById("examInfo").innerHTML = "";
+                document.getElementById("paperInfo").innerHTML = "";
+                document.getElementById("questionList").innerHTML = "";
+                return;
+            }
+
+            examDetail = result.data;
+            renderExamInfo();
+
+            if (examDetail.paperId) {
+                await loadPaperDetail(examDetail.paperId);
+            } else {
+                document.getElementById("paperInfo").innerHTML = "该考试未关联试卷";
+                document.getElementById("questionList").innerHTML = "";
+            }
+        } catch (error) {
+            console.error("加载考试详情失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadPaperDetail(paperId) {
+        try {
+            const result = await get("/paper/" + paperId);
+
+            if (result.code !== 200) {
+                document.getElementById("paperInfo").innerHTML = result.message || "加载试卷失败";
+                document.getElementById("questionList").innerHTML = "";
+                return;
+            }
+
+            paperDetail = result.data;
+            renderPaperInfo();
+            renderQuestionList();
+        } catch (error) {
+            console.error("加载试卷详情失败：", error);
+            document.getElementById("paperInfo").innerHTML = "无法连接后端";
+            document.getElementById("questionList").innerHTML = "";
+        }
+    }
+
+    function renderExamInfo() {
+        const realStatus = getRealExamStatus(examDetail);
+
+        document.getElementById("examInfo").innerHTML = `
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">考试ID</div>
+                    <div class="info-value">${examDetail.id ?? ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">考试名称</div>
+                    <div class="info-value">${examDetail.examName || ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">关联试卷</div>
+                    <div class="info-value">${getPaperName(examDetail.paperId)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">班级</div>
+                    <div class="info-value">${getClassName(examDetail.classId)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">课程</div>
+                    <div class="info-value">${getCourseName(examDetail.courseId)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">教师</div>
+                    <div class="info-value">${getUserName(examDetail.teacherId)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">开始时间</div>
+                    <div class="info-value">${formatTime(examDetail.startTime)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">结束时间</div>
+                    <div class="info-value">${formatTime(examDetail.endTime)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">考试时长</div>
+                    <div class="info-value">${examDetail.duration ?? ""} 分钟</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">考试状态</div>
+                    <div class="info-value">
+                        <span class="status-tag ${getStatusClass(realStatus)}">
+                            ${getStatusText(realStatus)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPaperInfo() {
+        document.getElementById("paperInfo").innerHTML = `
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">试卷ID</div>
+                    <div class="info-value">${paperDetail.id ?? ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">试卷名称</div>
+                    <div class="info-value">${paperDetail.paperName || ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">试卷总分</div>
+                    <div class="info-value">${paperDetail.totalScore ?? ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">及格分数</div>
+                    <div class="info-value">${paperDetail.passScore ?? ""}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">创建人</div>
+                    <div class="info-value">${getUserName(paperDetail.createUser)}</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">创建时间</div>
+                    <div class="info-value">${formatTime(paperDetail.createTime)}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderQuestionList() {
+        const questions = paperDetail.questionList || [];
+
+        if (questions.length === 0) {
+            document.getElementById("questionList").innerHTML =
+                '<div class="empty">该试卷暂无题目</div>';
+            return;
+        }
+
+        document.getElementById("questionList").innerHTML = questions.map((q, index) => `
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="question-title">
+                        ${index + 1}. ${q.questionText || ""}
+                    </div>
+                    <div class="score-tag">${q.score ?? 0} 分</div>
+                </div>
+
+                <div class="question-meta">
+                    题目ID：${q.questionId ?? ""} ｜
+                    题型：${getQuestionTypeText(q.questionType)} ｜
+                    课程：${q.course || ""} ｜
+                    难度：${q.difficulty ?? ""}
+                </div>
+
+                <div class="option-list">
+                    <div>A：${q.optionA || ""}</div>
+                    <div>B：${q.optionB || ""}</div>
+                    <div>C：${q.optionC || ""}</div>
+                    <div>D：${q.optionD || ""}</div>
+                </div>
+
+                <div class="answer">
+                    正确答案：${q.correctAnswer || ""}
+                </div>
+            </div>
+        `).join("");
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) return;
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        examId = getIdFromUrl();
+
+        if (!examId) {
+            showMessage("缺少考试ID，无法查看考试详情");
+            document.getElementById("examInfo").innerHTML = "";
+            document.getElementById("paperInfo").innerHTML = "";
+            document.getElementById("questionList").innerHTML = "";
+            return;
+        }
+
+        await loadBaseData();
+        await loadExamDetail();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

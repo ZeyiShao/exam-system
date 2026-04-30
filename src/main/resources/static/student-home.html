@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学生首页 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .welcome-card,
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+            padding: 22px 24px;
+            margin-bottom: 22px;
+        }
+
+        .welcome-title {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .welcome-desc {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 18px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 30px 0;
+            font-size: 14px;
+        }
+
+        .exam-list,
+        .record-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .item-card {
+            border: 1px solid #ebeef5;
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            background: #fcfcfd;
+        }
+
+        .item-left {
+            flex: 1;
+        }
+
+        .item-title {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 24px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .item-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .tag-blue {
+            background: #409eff;
+        }
+
+        .tag-green {
+            background: #67c23a;
+        }
+
+        .tag-orange {
+            background: #e6a23c;
+        }
+
+        .tag-gray {
+            background: #909399;
+        }
+
+        .user-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .item-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .item-right {
+                width: 100%;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">在线考试系统</div>
+    <div class="user-box">
+        <span id="studentInfoText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="welcome-card">
+        <div class="welcome-title">学生考试首页</div>
+        <div class="welcome-desc">
+            这里可以查看可参加的考试，并进入在线答题页面。<br>
+            如果你有未完成的考试，点击“开始考试”后系统会自动继续上次作答。
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">可参加考试</div>
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="loadExamList()">刷新考试列表</button>
+        </div>
+        <div id="examList" class="exam-list"></div>
+        <div id="examMessage" class="message"></div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title">我的考试记录</div>
+        <div class="toolbar">
+            <button class="btn btn-gray" onclick="loadMyRecords()">刷新考试记录</button>
+        </div>
+        <div id="recordList" class="record-list"></div>
+        <div id="recordMessage" class="message"></div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let examData = [];
+    let recordData = [];
+
+    function formatTime(timeStr) {
+        if (!timeStr) return "暂无";
+        return timeStr.replace("T", " ");
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "NOT_STARTED":
+                return "未开始";
+            case "DOING":
+                return "进行中";
+            case "FINISHED":
+                return "已完成";
+            case "ONGOING":
+                return "进行中";
+            default:
+                return status || "未知";
+        }
+    }
+
+    function getStatusTagClass(status) {
+        switch (status) {
+            case "NOT_STARTED":
+                return "tag-blue";
+            case "DOING":
+            case "ONGOING":
+                return "tag-orange";
+            case "FINISHED":
+                return "tag-green";
+            default:
+                return "tag-gray";
+        }
+    }
+
+    function checkStudentLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "STUDENT") {
+            alert("当前账号不是学生账号，无法进入学生端");
+            logout();
+            return null;
+        }
+
+        return user;
+    }
+
+    function renderStudentInfo() {
+        document.getElementById("studentInfoText").textContent =
+            "当前学生：" + currentUser.realName + "（ID：" + currentUser.id + "）";
+    }
+
+    async function loadExamList() {
+        const examListEl = document.getElementById("examList");
+        const messageEl = document.getElementById("examMessage");
+
+        examListEl.innerHTML = '<div class="empty">考试列表加载中...</div>';
+        messageEl.textContent = "";
+
+        try {
+            const result = await get("/exam/list");
+
+            if (result.code !== 200) {
+                examListEl.innerHTML = "";
+                messageEl.textContent = result.message || "获取考试列表失败";
+                return;
+            }
+
+            const now = new Date();
+
+            examData = (result.data || []).filter(exam => {
+                if (!exam.endTime) return true;
+
+                const endTime = new Date(exam.endTime.replace("T", " "));
+                return endTime >= now;
+            });
+
+            if (examData.length === 0) {
+                examListEl.innerHTML = '<div class="empty">暂无考试</div>';
+                return;
+            }
+
+            examListEl.innerHTML = examData.map(exam => `
+                <div class="item-card">
+                    <div class="item-left">
+                        <div class="item-title">${exam.examName || "未命名考试"}</div>
+                        <div class="item-meta">
+                            <span>考试ID：${exam.id ?? ""}</span>
+                            <span>课程ID：${exam.courseId ?? ""}</span>
+                            <span>班级ID：${exam.classId ?? ""}</span>
+                            <span>时长：${exam.duration ?? 0} 分钟</span>
+                            <span>开始时间：${formatTime(exam.startTime)}</span>
+                            <span>结束时间：${formatTime(exam.endTime)}</span>
+                        </div>
+                    </div>
+                    <div class="item-right">
+                        <span class="tag ${getStatusTagClass(exam.status)}">${getStatusText(exam.status)}</span>
+                        <button class="btn btn-primary" onclick="startExam(${exam.id})">开始考试</button>
+                    </div>
+                </div>
+            `).join("");
+        } catch (error) {
+            console.error("获取考试列表失败：", error);
+            examListEl.innerHTML = "";
+            messageEl.textContent = "无法连接后端，请检查服务是否启动";
+        }
+    }
+
+    async function loadMyRecords() {
+        const recordListEl = document.getElementById("recordList");
+        const messageEl = document.getElementById("recordMessage");
+
+        recordListEl.innerHTML = '<div class="empty">考试记录加载中...</div>';
+        messageEl.textContent = "";
+
+        try {
+            const result = await get("/examRecord/student/" + currentUser.id);
+
+            if (result.code !== 200) {
+                recordListEl.innerHTML = "";
+                messageEl.textContent = result.message || "获取考试记录失败";
+                return;
+            }
+
+            recordData = result.data || [];
+
+            if (recordData.length === 0) {
+                recordListEl.innerHTML = '<div class="empty">暂无考试记录</div>';
+                return;
+            }
+
+            recordListEl.innerHTML = recordData.map(record => `
+                <div class="item-card">
+                    <div class="item-left">
+                        <div class="item-title">${record.examName || "未命名考试"}</div>
+                        <div class="item-meta">
+                            <span>记录ID：${record.recordId ?? ""}</span>
+                            <span>考试ID：${record.examId ?? ""}</span>
+                            <span>成绩：${record.score ?? 0} 分</span>
+                            <span>是否通过：${record.isPass ? "是" : "否"}</span>
+                            <span>提交时间：${formatTime(record.submitTime)}</span>
+                        </div>
+                    </div>
+                    <div class="item-right">
+                        <button class="btn btn-primary" onclick="viewRecordResult(${record.recordId}, '${record.examName || ""}', ${record.score ?? 0}, ${record.isPass})">
+                            查看结果
+                        </button>
+                    </div>
+                </div>
+            `).join("");
+        } catch (error) {
+            console.error("获取考试记录失败：", error);
+            recordListEl.innerHTML = "";
+            messageEl.textContent = "无法连接后端，请检查服务是否启动";
+        }
+    }
+
+    async function startExam(examId) {
+        const messageEl = document.getElementById("examMessage");
+        messageEl.textContent = "";
+
+        try {
+            const result = await post("/examRecord/start", {
+                examId: examId,
+                studentId: Number(currentUser.id)
+            });
+
+            if (result.code !== 200) {
+                messageEl.textContent = result.message || "开始考试失败";
+                return;
+            }
+
+            window.location.href = "exam-start.html?recordId=" + result.data;
+        } catch (error) {
+            console.error("开始考试失败：", error);
+            messageEl.textContent = "无法连接后端，请检查服务是否启动";
+        }
+    }
+
+    function initPage() {
+        currentUser = checkStudentLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        renderStudentInfo();
+        loadExamList();
+        loadMyRecords();
+    }
+
+    function viewRecordResult(recordId, examName, score, isPass) {
+        localStorage.setItem("examSubmitResult", JSON.stringify({
+            recordId: recordId,
+            score: score,
+            isPass: isPass,
+            status: "FINISHED"
+        }));
+
+        localStorage.setItem("lastExamDetail", JSON.stringify({
+            examName: examName,
+            recordId: recordId
+        }));
+
+        window.location.href = "student-result.html";
+    }
+
+    initPage();
+</script>
+</body>
+</html>

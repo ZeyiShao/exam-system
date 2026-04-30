@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生-班级管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">学生-班级管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">关系操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增学生-班级关系</button>
+            <button class="btn btn-gray" onclick="loadRelationList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title">新增学生-班级关系</div>
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>学生</label>
+                <select class="input" id="studentId">
+                    <option value="">请选择学生</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>班级</label>
+                <select class="input" id="classId">
+                    <option value="">请选择班级</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveRelation()">保存关系</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">学生-班级关系列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 80px;">ID</th>
+                <th>学生</th>
+                <th>班级</th>
+                <th style="width: 140px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="relationTableBody">
+            <tr>
+                <td colspan="4">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let relationList = [];
+    let studentList = [];
+    let classList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有学生-班级管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("studentId").value = "";
+        document.getElementById("classId").value = "";
+        showMessage("");
+    }
+
+    function getStudentName(id) {
+        const student = studentList.find(item => Number(item.id) === Number(id));
+        return student ? (student.realName || student.username) : "ID：" + id;
+    }
+
+    function getClassName(id) {
+        const cls = classList.find(item => Number(item.id) === Number(id));
+        return cls ? cls.className : "ID：" + id;
+    }
+
+    function renderSelectOptions() {
+        const studentSelect = document.getElementById("studentId");
+        const classSelect = document.getElementById("classId");
+
+        studentSelect.innerHTML = `<option value="">请选择学生</option>` +
+            studentList.map(item => `
+                <option value="${item.id}">
+                    ${item.realName || item.username}（ID：${item.id}）
+                </option>
+            `).join("");
+
+        classSelect.innerHTML = `<option value="">请选择班级</option>` +
+            classList.map(item => `
+                <option value="${item.id}">
+                    ${item.className || "未命名班级"}（ID：${item.id}）
+                </option>
+            `).join("");
+    }
+
+    async function loadBaseData() {
+        try {
+            const [userRes, classRes] = await Promise.all([
+                get("/user/list"),
+                get("/class/list")
+            ]);
+
+            if (userRes.code === 200) {
+                studentList = (userRes.data || []).filter(user => user.role === "STUDENT");
+            }
+
+            if (classRes.code === 200) {
+                classList = classRes.data || [];
+            }
+
+            renderSelectOptions();
+        } catch (error) {
+            console.error("加载基础数据失败：", error);
+            showMessage("加载学生或班级数据失败");
+        }
+    }
+
+    async function loadRelationList() {
+        const tbody = document.getElementById("relationTableBody");
+        tbody.innerHTML = `<tr><td colspan="4">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/studentClass/list");
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="4">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            relationList = result.data || [];
+
+            if (relationList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4">暂无学生-班级关系</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = relationList.map(item => `
+                <tr>
+                    <td>${item.id ?? ""}</td>
+                    <td>${item.studentName || getStudentName(item.studentId)}（ID：${item.studentId ?? ""}）</td>
+                    <td>${item.className || getClassName(item.classId)}（ID：${item.classId ?? ""}）</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteRelation(${item.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载学生-班级关系列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="4">无法连接后端</td></tr>`;
+        }
+    }
+
+    function buildRelationData() {
+        const studentId = document.getElementById("studentId").value;
+        const classId = document.getElementById("classId").value;
+
+        if (!studentId) {
+            showMessage("请选择学生");
+            return null;
+        }
+
+        if (!classId) {
+            showMessage("请选择班级");
+            return null;
+        }
+
+        return {
+            studentId: Number(studentId),
+            classId: Number(classId)
+        };
+    }
+
+    async function saveRelation() {
+        const data = buildRelationData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = await post("/studentClass/add", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadRelationList();
+        } catch (error) {
+            console.error("保存学生-班级关系失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteRelation(id) {
+        const ok = confirm("确认删除该学生-班级关系吗？删除后该学生可能无法参加该班级考试。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/studentClass/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadRelationList();
+        } catch (error) {
+            console.error("删除学生-班级关系失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+
+        await loadBaseData();
+        await loadRelationList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

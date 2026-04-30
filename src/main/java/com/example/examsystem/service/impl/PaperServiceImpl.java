@@ -3,6 +3,7 @@ package com.example.examsystem.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.entity.Paper;
 import com.example.examsystem.entity.PaperQuestion;
 import com.example.examsystem.entity.Question;
@@ -104,7 +105,7 @@ public class PaperServiceImpl implements PaperService {
     public PaperDetailVO getById(Integer id) {
         Paper paper = paperMapper.selectById(id);
         if (paper == null) {
-            return null;
+            throw new BusinessException("试卷不存在");
         }
 
         PaperDetailVO detailVO = new PaperDetailVO();
@@ -202,7 +203,7 @@ public class PaperServiceImpl implements PaperService {
         List<Question> questionList = questionMapper.selectList(wrapper);
 
         if (CollectionUtils.isEmpty(questionList) || questionList.size() < count) {
-            throw new RuntimeException(questionType + " 题型数量不足，无法随机组卷");
+            throw new BusinessException(questionType + " 题型数量不足，无法随机组卷");
         }
 
         Collections.shuffle(questionList);

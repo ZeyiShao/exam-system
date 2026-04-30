@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>在线考试 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .exam-layout {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 20px;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 18px;
+            border: 1px solid #ebeef5;
+        }
+
+        .question-title {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 14px;
+            line-height: 1.7;
+        }
+
+        .option-item {
+            display: block;
+            margin: 10px 0;
+            padding: 10px 12px;
+            border: 1px solid #ebeef5;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .option-item:hover {
+            background: #f5f9ff;
+        }
+
+        .side-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+            border: 1px solid #ebeef5;
+        }
+
+        .time-box {
+            font-size: 28px;
+            font-weight: bold;
+            color: #f56c6c;
+            text-align: center;
+            margin: 18px 0;
+        }
+
+        .answer-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .answer-num {
+            padding: 8px 0;
+            text-align: center;
+            border-radius: 6px;
+            background: #f2f3f5;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .answered {
+            background: #409eff;
+            color: white;
+        }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 18px;
+        }
+
+        .warning-box {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            color: #8a5a00;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 10px;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .exam-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .side-card {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">在线考试</div>
+    <div class="user-box">
+        <span id="studentText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title" id="examTitle">考试加载中...</div>
+        <div id="examInfo" class="message"></div>
+        <div class="warning-box">
+            考试过程中请勿重复刷新或关闭页面，系统会自动保存作答记录。考试结束后将自动提交。
+        </div>
+    </div>
+
+    <div class="exam-layout">
+        <div id="questionBox"></div>
+
+        <div class="side-card">
+            <div class="title">考试信息</div>
+            <div class="time-box" id="timeBox">--:--</div>
+
+            <div id="answerCard" class="answer-grid"></div>
+
+            <button class="btn btn-primary submit-btn" id="submitBtn" onclick="submitExam()">提交试卷</button>
+            <button class="btn btn-gray submit-btn" onclick="saveLocalAnswers()">保存作答</button>
+
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let recordId = null;
+    let examDetail = null;
+    let paperDetail = null;
+    let examRecord = null;
+    let questions = [];
+    let answers = {};
+    let timer = null;
+    let remainSeconds = 0;
+    let submitted = false;
+
+    function getRecordIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("recordId");
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) return "暂无";
+        return timeStr.replace("T", " ");
+    }
+
+    function checkStudentLogin() {
+        const user = getUser();
+
+        if (!user) return null;
+
+        if (user.role !== "STUDENT") {
+            alert("当前账号不是学生账号，无法参加考试");
+            logout();
+            return null;
+        }
+
+        return user;
+    }
+
+    function goStudentHome() {
+        window.location.href = "student-home.html";
+    }
+
+    function getAnswerStorageKey() {
+        return "exam_answers_record_" + recordId;
+    }
+
+    function saveLocalAnswers() {
+        localStorage.setItem(getAnswerStorageKey(), JSON.stringify(answers));
+        showMessage("作答已保存");
+    }
+
+    function loadLocalAnswers() {
+        const raw = localStorage.getItem(getAnswerStorageKey());
+        if (!raw) return;
+
+        const ok = confirm("检测到该考试有未提交的本地作答记录，是否恢复？");
+
+        if (!ok) {
+            localStorage.removeItem(getAnswerStorageKey());
+            answers = {};
+            return;
+        }
+
+        try {
+            answers = JSON.parse(raw) || {};
+        } catch (e) {
+            answers = {};
+            localStorage.removeItem(getAnswerStorageKey());
+        }
+    }
+
+    function isRecordFinished(record) {
+        return record.status === "FINISHED" || record.isSubmit === true || record.submitTime;
+    }
+
+    function validateRecord(record) {
+        if (!record) {
+            alert("考试记录不存在");
+            goStudentHome();
+            return false;
+        }
+
+        if (Number(record.studentId) !== Number(currentUser.id)) {
+            alert("该考试记录不属于当前学生，禁止进入");
+            goStudentHome();
+            return false;
+        }
+
+        if (isRecordFinished(record)) {
+            alert("该考试已经提交，不能重复进入");
+            localStorage.removeItem(getAnswerStorageKey());
+            goStudentHome();
+            return false;
+        }
+
+        return true;
+    }
+
+    function validateExamTime(exam) {
+        const now = new Date();
+
+        if (exam.startTime) {
+            const start = new Date(exam.startTime.replace("T", " "));
+            if (now < start) {
+                alert("考试尚未开始，开始时间为：" + formatTime(exam.startTime));
+                goStudentHome();
+                return false;
+            }
+        }
+
+        if (exam.endTime) {
+            const end = new Date(exam.endTime.replace("T", " "));
+            if (now > end) {
+                alert("考试已经结束，无法进入作答页面");
+                goStudentHome();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    async function loadRecordAndExam() {
+        try {
+            const recordRes = await get("/examRecord/" + recordId);
+
+            if (recordRes.code !== 200) {
+                showMessage(recordRes.message || "加载考试记录失败");
+                return;
+            }
+
+            examRecord = recordRes.data;
+
+            if (!validateRecord(examRecord)) {
+                return;
+            }
+
+            const examId = examRecord.examId;
+            const examRes = await get("/exam/" + examId);
+
+            if (examRes.code !== 200) {
+                showMessage(examRes.message || "加载考试信息失败");
+                return;
+            }
+
+            examDetail = examRes.data;
+
+            if (!validateExamTime(examDetail)) {
+                return;
+            }
+
+            const paperRes = await get("/paper/" + examDetail.paperId);
+
+            if (paperRes.code !== 200) {
+                showMessage(paperRes.message || "加载试卷失败");
+                return;
+            }
+
+            paperDetail = paperRes.data;
+            questions = paperDetail.questionList || [];
+
+            loadLocalAnswers();
+            renderExam();
+            startTimer(examRecord);
+        } catch (error) {
+            console.error("加载考试失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    function renderExam() {
+        document.getElementById("examTitle").textContent = examDetail.examName || "在线考试";
+
+        document.getElementById("examInfo").innerHTML = `
+            试卷：${paperDetail.paperName || ""}　
+            总分：${paperDetail.totalScore ?? ""}　
+            及格分：${paperDetail.passScore ?? ""}　
+            开始时间：${formatTime(examDetail.startTime)}　
+            结束时间：${formatTime(examDetail.endTime)}
+        `;
+
+        renderQuestions();
+        renderAnswerCard();
+    }
+
+    function renderQuestions() {
+        const box = document.getElementById("questionBox");
+
+        if (questions.length === 0) {
+            box.innerHTML = `<div class="card">该试卷暂无题目</div>`;
+            return;
+        }
+
+        box.innerHTML = questions.map((q, index) => `
+            <div class="question-card" id="q${index + 1}">
+                <div class="question-title">
+                    ${index + 1}. ${q.questionText || ""}
+                    <span style="color:#999;font-size:13px;">
+                        （${q.score ?? 0}分 / ${getQuestionTypeText(q.questionType)}）
+                    </span>
+                </div>
+                ${renderOptions(q)}
+            </div>
+        `).join("");
+    }
+
+    function renderOptions(q) {
+        if (q.questionType === "judge") {
+            return `
+                ${renderOption(q, "true", "正确")}
+                ${renderOption(q, "false", "错误")}
+            `;
+        }
+
+        if (q.questionType === "multiple") {
+            return `
+                ${renderOption(q, "A", q.optionA, true)}
+                ${renderOption(q, "B", q.optionB, true)}
+                ${renderOption(q, "C", q.optionC, true)}
+                ${renderOption(q, "D", q.optionD, true)}
+            `;
+        }
+
+        return `
+            ${renderOption(q, "A", q.optionA)}
+            ${renderOption(q, "B", q.optionB)}
+            ${renderOption(q, "C", q.optionC)}
+            ${renderOption(q, "D", q.optionD)}
+        `;
+    }
+
+    function renderOption(q, value, text, multiple = false) {
+        if (!text && q.questionType !== "judge") return "";
+
+        const questionId = q.questionId ?? q.id;
+        const current = answers[questionId];
+
+        let checked = false;
+
+        if (multiple) {
+            checked = Array.isArray(current) && current.includes(value);
+        } else {
+            checked = current === value;
+        }
+
+        return `
+            <label class="option-item">
+                <input
+                    type="${multiple ? 'checkbox' : 'radio'}"
+                    name="question_${questionId}"
+                    value="${value}"
+                    ${checked ? "checked" : ""}
+                    onchange="changeAnswer(${questionId}, '${value}', ${multiple})"
+                >
+                ${value === "true" || value === "false" ? "" : value + "："}${text}
+            </label>
+        `;
+    }
+
+    function changeAnswer(questionId, value, multiple) {
+        if (submitted) return;
+
+        if (multiple) {
+            if (!Array.isArray(answers[questionId])) {
+                answers[questionId] = [];
+            }
+
+            const index = answers[questionId].indexOf(value);
+
+            if (index >= 0) {
+                answers[questionId].splice(index, 1);
+            } else {
+                answers[questionId].push(value);
+            }
+
+            answers[questionId].sort();
+        } else {
+            answers[questionId] = value;
+        }
+
+        saveLocalAnswers();
+        renderAnswerCard();
+    }
+
+    function renderAnswerCard() {
+        const box = document.getElementById("answerCard");
+
+        box.innerHTML = questions.map((q, index) => {
+            const questionId = q.questionId ?? q.id;
+            const answer = answers[questionId];
+            const answered = Array.isArray(answer) ? answer.length > 0 : !!answer;
+
+            return `
+                <div class="answer-num ${answered ? 'answered' : ''}" onclick="jumpToQuestion(${index + 1})">
+                    ${index + 1}
+                </div>
+            `;
+        }).join("");
+    }
+
+    function jumpToQuestion(num) {
+        const el = document.getElementById("q" + num);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知题型";
+        }
+    }
+
+    function startTimer(record) {
+        const durationMinutes = examDetail.duration || paperDetail.duration || 90;
+
+        const startTime = record.startTime
+            ? new Date(record.startTime.replace("T", " ")).getTime()
+            : Date.now();
+
+        const endTimeByDuration = startTime + durationMinutes * 60 * 1000;
+        const examEndTime = examDetail.endTime
+            ? new Date(examDetail.endTime.replace("T", " ")).getTime()
+            : endTimeByDuration;
+
+        const finalEndTime = Math.min(endTimeByDuration, examEndTime);
+
+        timer = setInterval(() => {
+            remainSeconds = Math.floor((finalEndTime - Date.now()) / 1000);
+
+            if (remainSeconds <= 0) {
+                clearInterval(timer);
+                document.getElementById("timeBox").textContent = "00:00";
+                alert("考试时间已到，系统将自动提交试卷");
+                submitExam(true);
+                return;
+            }
+
+            const min = Math.floor(remainSeconds / 60);
+            const sec = remainSeconds % 60;
+
+            document.getElementById("timeBox").textContent =
+                String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+        }, 1000);
+    }
+
+    function buildSubmitData() {
+        const answerList = questions.map(q => {
+            const questionId = q.questionId ?? q.id;
+            let answer = answers[questionId];
+
+            if (Array.isArray(answer)) {
+                answer = answer.join(",");
+            }
+
+            return {
+                questionId: Number(questionId),
+                answer: answer || ""
+            };
+        });
+
+        return {
+            recordId: Number(recordId),
+            studentId: Number(currentUser.id),
+            answerList: answerList
+        };
+    }
+
+    async function submitExam(autoSubmit = false) {
+        if (submitted) return;
+
+        showMessage("");
+
+        const unanswered = questions.filter(q => {
+            const questionId = q.questionId ?? q.id;
+            const answer = answers[questionId];
+            return Array.isArray(answer) ? answer.length === 0 : !answer;
+        });
+
+        if (!autoSubmit && unanswered.length > 0) {
+            const ok = confirm("还有 " + unanswered.length + " 道题未作答，确认提交吗？");
+            if (!ok) return;
+        }
+
+        if (!autoSubmit) {
+            const ok = confirm("提交后不能继续修改答案，确认提交试卷吗？");
+            if (!ok) return;
+        }
+
+        submitted = true;
+        document.getElementById("submitBtn").disabled = true;
+        document.getElementById("submitBtn").textContent = "提交中...";
+
+        try {
+            const result = await post("/examRecord/submit", buildSubmitData());
+
+            if (result.code !== 200) {
+                submitted = false;
+                document.getElementById("submitBtn").disabled = false;
+                document.getElementById("submitBtn").textContent = "提交试卷";
+                showMessage(result.message || "提交失败");
+                return;
+            }
+
+            localStorage.removeItem(getAnswerStorageKey());
+
+            localStorage.setItem("examSubmitResult", JSON.stringify(result.data || {}));
+            localStorage.setItem("lastExamDetail", JSON.stringify({
+                examName: examDetail.examName,
+                recordId: recordId
+            }));
+
+            window.onbeforeunload = null;
+
+            alert(result.message || "提交成功");
+            window.location.href = "student-result.html";
+        } catch (error) {
+            submitted = false;
+            document.getElementById("submitBtn").disabled = false;
+            document.getElementById("submitBtn").textContent = "提交试卷";
+            console.error("提交失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    window.onbeforeunload = function () {
+        if (!submitted && questions.length > 0) {
+            return "考试尚未提交，确定要离开页面吗？";
+        }
+    };
+
+    function initPage() {
+        currentUser = checkStudentLogin();
+
+        if (!currentUser) return;
+
+        document.getElementById("studentText").textContent =
+            "当前学生：" + currentUser.realName + "（ID：" + currentUser.id + "）";
+
+        recordId = getRecordIdFromUrl();
+
+        if (!recordId) {
+            showMessage("缺少考试记录ID，无法进入考试");
+            return;
+        }
+
+        loadRecordAndExam();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

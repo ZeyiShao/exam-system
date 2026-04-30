@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>考试结果 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header-user {
+            font-size: 14px;
+        }
+
+        .result-container {
+            width: 760px;
+            max-width: calc(100% - 30px);
+            margin: 40px auto;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+            padding: 36px 32px;
+            text-align: center;
+        }
+
+        .result-icon {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: white;
+        }
+
+        .pass-icon {
+            background: #67c23a;
+        }
+
+        .fail-icon {
+            background: #f56c6c;
+        }
+
+        .result-title {
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .result-subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 28px;
+        }
+
+        .score-box {
+            margin: 20px auto 30px;
+            padding: 22px;
+            border-radius: 12px;
+            background: #f8fbff;
+            border: 1px solid #e6f1fc;
+        }
+
+        .score-label {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .score-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #409eff;
+        }
+
+        .detail-list {
+            text-align: left;
+            margin-top: 20px;
+            border-top: 1px solid #ebeef5;
+            padding-top: 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f2f3f5;
+            font-size: 15px;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #666;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+        }
+
+        .tag-pass {
+            background: #67c23a;
+        }
+
+        .tag-fail {
+            background: #f56c6c;
+        }
+
+        .tag-status {
+            background: #409eff;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 34px;
+        }
+
+        .empty-box {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .empty-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 14px;
+        }
+
+        .empty-desc {
+            color: #666;
+            font-size: 15px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .result-container {
+                max-width: calc(100% - 20px);
+                margin: 20px auto;
+            }
+
+            .result-card {
+                padding: 26px 18px;
+            }
+
+            .detail-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="header-title">在线考试系统</div>
+    <div class="header-user" id="studentInfoText">当前学生：未登录</div>
+</div>
+
+<div class="result-container" id="pageContainer"></div>
+
+<script>
+    let currentUser = null;
+    let resultData = null;
+    let examDetail = null;
+
+    function checkStudentLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "STUDENT") {
+            alert("当前账号不是学生账号，无法查看学生考试结果");
+            logout();
+            return null;
+        }
+
+        return user;
+    }
+
+    function getLocalResult() {
+        const raw = localStorage.getItem("examSubmitResult");
+
+        if (!raw) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            localStorage.removeItem("examSubmitResult");
+            return null;
+        }
+    }
+
+    function getLastExamDetail() {
+        const raw = localStorage.getItem("lastExamDetail");
+
+        if (!raw) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            localStorage.removeItem("lastExamDetail");
+            return null;
+        }
+    }
+
+    function renderHeader() {
+        document.getElementById("studentInfoText").textContent =
+            "当前学生：" + (currentUser.realName || "") + "（ID：" + (currentUser.id || "") + "）";
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "FINISHED":
+                return "已完成";
+            case "DOING":
+                return "进行中";
+            case "NOT_STARTED":
+                return "未开始";
+            case "ONGOING":
+                return "进行中";
+            default:
+                return status || "未知";
+        }
+    }
+
+    function renderEmptyPage() {
+        document.getElementById("pageContainer").innerHTML = `
+            <div class="empty-box">
+                <div class="empty-title">暂无考试结果</div>
+                <div class="empty-desc">当前未检测到交卷结果，请先完成考试后再查看结果页面。</div>
+                <button class="btn btn-primary" onclick="goHome()">返回学生首页</button>
+            </div>
+        `;
+    }
+
+    function renderResultPage() {
+        const isPass = !!resultData.isPass;
+        const examName = examDetail?.examName || "本次考试";
+
+        document.getElementById("pageContainer").innerHTML = `
+            <div class="result-card">
+                <div class="result-icon ${isPass ? 'pass-icon' : 'fail-icon'}">
+                    ${isPass ? '✓' : '✕'}
+                </div>
+
+                <div class="result-title">${isPass ? "考试通过" : "考试未通过"}</div>
+                <div class="result-subtitle">${examName} 已成功提交，以下为本次考试结果</div>
+
+                <div class="score-box">
+                    <div class="score-label">本次成绩</div>
+                    <div class="score-value">${resultData.score ?? 0}</div>
+                </div>
+
+                <div class="detail-list">
+                    <div class="detail-item">
+                        <div class="detail-label">考试名称</div>
+                        <div class="detail-value">${examName}</div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-label">考试记录ID</div>
+                        <div class="detail-value">${resultData.recordId ?? ""}</div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-label">是否通过</div>
+                        <div class="detail-value">
+                            <span class="tag ${isPass ? 'tag-pass' : 'tag-fail'}">
+                                ${isPass ? '通过' : '未通过'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-label">考试状态</div>
+                        <div class="detail-value">
+                            <span class="tag tag-status">${getStatusText(resultData.status)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="goHome()">返回学生首页</button>
+                    <button class="btn btn-gray" onclick="clearResult()">清除本次结果缓存</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function clearResult() {
+        localStorage.removeItem("examSubmitResult");
+        localStorage.removeItem("lastExamDetail");
+        alert("本次考试结果缓存已清除");
+        goHome();
+    }
+
+    function initPage() {
+        currentUser = checkStudentLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        renderHeader();
+
+        resultData = getLocalResult();
+        examDetail = getLastExamDetail();
+
+        if (!resultData) {
+            renderEmptyPage();
+            return;
+        }
+
+        renderResultPage();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

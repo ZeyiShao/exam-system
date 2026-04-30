@@ -1,6 +1,7 @@
 package com.example.examsystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.entity.Course;
 import com.example.examsystem.entity.SysUser;
 import com.example.examsystem.entity.TeacherCourse;
@@ -32,15 +33,15 @@ public class TeacherCourseServiceImpl implements TeacherCourseService {
     public void add(Long teacherId, Integer courseId) {
         SysUser user = sysUserMapper.selectById(teacherId);
         if (user == null) {
-            throw new RuntimeException("教师不存在");
+            throw new BusinessException("教师不存在");
         }
         if (!"TEACHER".equals(user.getRole())) {
-            throw new RuntimeException("该用户不是教师");
+            throw new BusinessException("该用户不是教师");
         }
 
         Course course = courseMapper.selectById(courseId);
         if (course == null) {
-            throw new RuntimeException("课程不存在");
+            throw new BusinessException("课程不存在");
         }
 
         LambdaQueryWrapper<TeacherCourse> wrapper = new LambdaQueryWrapper<>();
@@ -49,7 +50,7 @@ public class TeacherCourseServiceImpl implements TeacherCourseService {
 
         Long count = teacherCourseMapper.selectCount(wrapper);
         if (count != null && count > 0) {
-            throw new RuntimeException("该教师已分配此课程");
+            throw new BusinessException("该教师已分配此课程");
         }
 
         TeacherCourse teacherCourse = new TeacherCourse();
@@ -63,7 +64,7 @@ public class TeacherCourseServiceImpl implements TeacherCourseService {
     public void delete(Integer id) {
         TeacherCourse teacherCourse = teacherCourseMapper.selectById(id);
         if (teacherCourse == null) {
-            throw new RuntimeException("关系不存在");
+            throw new BusinessException("关系不存在");
         }
         teacherCourseMapper.deleteById(id);
     }
@@ -78,11 +79,11 @@ public class TeacherCourseServiceImpl implements TeacherCourseService {
         SysUser user = sysUserMapper.selectById(teacherId);
 
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new BusinessException("用户不存在");
         }
 
         if (!"TEACHER".equals(user.getRole())) {
-            throw new RuntimeException("该用户不是教师");
+            throw new BusinessException("该用户不是教师");
         }
 
         return teacherCourseMapper.selectByTeacherId(teacherId);

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑考试 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tip-box {
+            background: #f8fbff;
+            border: 1px solid #e6f1fc;
+            border-radius: 8px;
+            padding: 14px;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 800px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title" id="pageTitle">新增考试</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">考试基本信息</div>
+
+        <div class="tip-box">
+            教师只能为自己负责的班级和课程创建考试。请选择授课关系后，系统会自动确定班级、课程和教师信息。
+        </div>
+
+        <input type="hidden" id="examId">
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>考试名称</label>
+                <input class="input" id="examName" placeholder="请输入考试名称">
+            </div>
+
+            <div class="form-item">
+                <label>关联试卷</label>
+                <select class="input" id="paperId">
+                    <option value="">请选择试卷</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>授课关系</label>
+                <select class="input" id="relationId" onchange="onRelationChange()">
+                    <option value="">请选择班级 - 课程 - 教师</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>考试时长（分钟）</label>
+                <input class="input" id="duration" type="number" placeholder="例如：90">
+            </div>
+
+            <div class="form-item">
+                <label>开始时间</label>
+                <input class="input" id="startTime" type="datetime-local">
+            </div>
+
+            <div class="form-item">
+                <label>结束时间</label>
+                <input class="input" id="endTime" type="datetime-local">
+            </div>
+
+            <div class="form-item">
+                <label>状态</label>
+                <select class="input" id="status">
+                    <option value="NOT_STARTED">未开始</option>
+                    <option value="ONGOING">进行中</option>
+                    <option value="FINISHED">已结束</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="relationInfo" class="tip-box" style="margin-top: 18px; display: none;"></div>
+
+        <div id="message" class="message"></div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveExam()">保存考试</button>
+            <button class="btn btn-gray" onclick="goBack()">返回考试管理</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let examId = null;
+
+    let paperList = [];
+    let relationList = [];
+    let currentExam = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有考试编辑权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function getIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("id");
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function goBack() {
+        window.location.href = "exam-manage.html";
+    }
+
+    function toDateTimeLocal(timeStr) {
+        if (!timeStr) return "";
+        return timeStr.substring(0, 16);
+    }
+
+    function toBackendDateTime(value) {
+        if (!value) return null;
+        return value + ":00";
+    }
+
+    function getSelectedRelation() {
+        const relationId = document.getElementById("relationId").value;
+        if (!relationId) return null;
+        return relationList.find(item => String(item.id) === String(relationId));
+    }
+
+    function renderPaperOptions() {
+        const select = document.getElementById("paperId");
+
+        select.innerHTML = `<option value="">请选择试卷</option>` +
+            paperList.map(paper => `
+                <option value="${paper.id}">
+                    ${paper.paperName}（ID：${paper.id}，总分：${paper.totalScore ?? ""}）
+                </option>
+            `).join("");
+    }
+
+    function renderRelationOptions() {
+        const select = document.getElementById("relationId");
+
+        select.innerHTML = `<option value="">请选择班级 - 课程 - 教师</option>` +
+            relationList.map(item => `
+                <option value="${item.id}">
+                    ${item.className || "未知班级"} - ${item.courseName || "未知课程"} - ${item.teacherRealName || item.teacherUsername || "未知教师"}
+                </option>
+            `).join("");
+    }
+
+    function onRelationChange() {
+        const relation = getSelectedRelation();
+        const box = document.getElementById("relationInfo");
+
+        if (!relation) {
+            box.style.display = "none";
+            box.innerHTML = "";
+            return;
+        }
+
+        box.style.display = "block";
+        box.innerHTML = `
+            <b>当前选择：</b><br>
+            班级：${relation.className || ""}（ID：${relation.classId}）<br>
+            课程：${relation.courseName || ""}（ID：${relation.courseId}）<br>
+            教师：${relation.teacherRealName || relation.teacherUsername || ""}（ID：${relation.teacherId}）
+        `;
+    }
+
+    async function loadSelectData() {
+        try {
+            const paperRes = await get("/paper/list");
+
+            if (paperRes.code === 200) {
+                paperList = paperRes.data || [];
+            }
+
+            let relationRes;
+
+            if (currentUser.role === "TEACHER") {
+                relationRes = await get("/classCourseTeacher/teacher/" + currentUser.id);
+            } else {
+                relationRes = await get("/classCourseTeacher/list");
+            }
+
+            if (relationRes.code === 200) {
+                relationList = relationRes.data || [];
+            } else {
+                showMessage(relationRes.message || "授课关系加载失败");
+            }
+
+            renderPaperOptions();
+            renderRelationOptions();
+        } catch (error) {
+            console.error("加载下拉数据失败：", error);
+            showMessage("加载下拉数据失败，请检查后端服务");
+        }
+    }
+
+    async function loadExamDetail(id) {
+        try {
+            const result = await get("/exam/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "加载考试信息失败");
+                return;
+            }
+
+            const exam = result.data;
+            currentExam = exam;
+
+            document.getElementById("pageTitle").textContent = "编辑考试";
+            document.getElementById("examId").value = exam.id;
+            document.getElementById("examName").value = exam.examName || "";
+            document.getElementById("paperId").value = exam.paperId || "";
+            document.getElementById("duration").value = exam.duration || "";
+            document.getElementById("startTime").value = toDateTimeLocal(exam.startTime);
+            document.getElementById("endTime").value = toDateTimeLocal(exam.endTime);
+            document.getElementById("status").value = exam.status || "NOT_STARTED";
+
+            const relation = relationList.find(item =>
+                Number(item.classId) === Number(exam.classId) &&
+                Number(item.courseId) === Number(exam.courseId) &&
+                Number(item.teacherId) === Number(exam.teacherId)
+            );
+
+            if (relation) {
+                document.getElementById("relationId").value = relation.id;
+                onRelationChange();
+            } else {
+                showMessage("当前考试关联的班级-课程-教师关系不在当前可选范围内，请检查数据");
+            }
+        } catch (error) {
+            console.error("加载考试详情失败：", error);
+            showMessage("无法连接后端");
+        }
+    }
+
+    function buildExamData() {
+        const id = document.getElementById("examId").value;
+        const examName = document.getElementById("examName").value.trim();
+        const paperId = document.getElementById("paperId").value;
+        const relation = getSelectedRelation();
+        const duration = document.getElementById("duration").value;
+        const startTime = document.getElementById("startTime").value;
+        const endTime = document.getElementById("endTime").value;
+        const status = document.getElementById("status").value;
+
+        if (!examName) {
+            showMessage("请输入考试名称");
+            return null;
+        }
+
+        if (!paperId) {
+            showMessage("请选择试卷");
+            return null;
+        }
+
+        if (!relation) {
+            showMessage("请选择授课关系");
+            return null;
+        }
+
+        if (!duration || Number(duration) <= 0) {
+            showMessage("考试时长必须大于0");
+            return null;
+        }
+
+        if (!startTime || !endTime) {
+            showMessage("请选择考试开始时间和结束时间");
+            return null;
+        }
+
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+
+        if (start >= end) {
+            showMessage("开始时间必须早于结束时间");
+            return null;
+        }
+
+        const data = {
+            examName: examName,
+            paperId: Number(paperId),
+            classId: Number(relation.classId),
+            courseId: Number(relation.courseId),
+            teacherId: Number(relation.teacherId),
+            startTime: toBackendDateTime(startTime),
+            endTime: toBackendDateTime(endTime),
+            duration: Number(duration),
+            status: status
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        return data;
+    }
+
+    async function saveExam() {
+        const data = buildExamData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/exam", data)
+                : await post("/exam", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            alert(result.message || "保存成功");
+            window.location.href = "exam-manage.html";
+        } catch (error) {
+            console.error("保存考试失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        examId = getIdFromUrl();
+
+        await loadSelectData();
+
+        if (examId) {
+            await loadExamDetail(examId);
+        }
+    }
+
+    initPage();
+</script>
+</body>
+</html>

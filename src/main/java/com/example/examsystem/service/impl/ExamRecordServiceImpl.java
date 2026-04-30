@@ -1,6 +1,7 @@
 package com.example.examsystem.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.examsystem.common.BusinessException;
 import com.example.examsystem.dto.ExamStartDTO;
 import com.example.examsystem.dto.ExamSubmitAnswerDTO;
 import com.example.examsystem.dto.ExamSubmitDTO;
@@ -21,9 +22,7 @@ import com.example.examsystem.mapper.QuestionMapper;
 import com.example.examsystem.mapper.StudentClassMapper;
 import com.example.examsystem.mapper.SysUserMapper;
 import com.example.examsystem.service.ExamRecordService;
-import com.example.examsystem.vo.ExamSubmitResultVO;
-import com.example.examsystem.vo.StudentExamDetailVO;
-import com.example.examsystem.vo.StudentExamQuestionVO;
+import com.example.examsystem.vo.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -68,23 +67,23 @@ public class ExamRecordServiceImpl implements ExamRecordService {
     @Transactional
     public Integer startExam(ExamStartDTO dto) {
         if (dto.getExamId() == null) {
-            throw new RuntimeException("考试ID不能为空");
+            throw new BusinessException("考试ID不能为空");
         }
         if (dto.getStudentId() == null) {
-            throw new RuntimeException("学生ID不能为空");
+            throw new BusinessException("学生ID不能为空");
         }
 
         Exam exam = examMapper.selectById(dto.getExamId());
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
 
         SysUser student = sysUserMapper.selectById(dto.getStudentId());
         if (student == null) {
-            throw new RuntimeException("学生不存在");
+            throw new BusinessException("学生不存在");
         }
         if (!"STUDENT".equals(student.getRole())) {
-            throw new RuntimeException("该用户不是学生");
+            throw new BusinessException("该用户不是学生");
         }
 
         LambdaQueryWrapper<StudentClass> studentClassWrapper = new LambdaQueryWrapper<>();
@@ -93,15 +92,15 @@ public class ExamRecordServiceImpl implements ExamRecordService {
 
         Long studentClassCount = studentClassMapper.selectCount(studentClassWrapper);
         if (studentClassCount == null || studentClassCount == 0) {
-            throw new RuntimeException("该学生不属于本次考试班级，不能参加考试");
+            throw new BusinessException("该学生不属于本次考试班级，不能参加考试");
         }
 
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(exam.getStartTime())) {
-            throw new RuntimeException("考试未开始");
+            throw new BusinessException("考试未开始");
         }
         if (now.isAfter(exam.getEndTime())) {
-            throw new RuntimeException("考试已结束");
+            throw new BusinessException("考试已结束");
         }
 
         LambdaQueryWrapper<ExamRecord> wrapper = new LambdaQueryWrapper<>();
@@ -113,7 +112,7 @@ public class ExamRecordServiceImpl implements ExamRecordService {
         if (!CollectionUtils.isEmpty(recordList)) {
             for (ExamRecord record : recordList) {
                 if ("FINISHED".equals(record.getStatus())) {
-                    throw new RuntimeException("该学生已完成本次考试");
+                    throw new BusinessException("该学生已完成本次考试");
                 }
                 if ("DOING".equals(record.getStatus())) {
                     return record.getId();
@@ -137,17 +136,17 @@ public class ExamRecordServiceImpl implements ExamRecordService {
     public StudentExamDetailVO getExamDetail(Integer recordId) {
         ExamRecord examRecord = examRecordMapper.selectById(recordId);
         if (examRecord == null) {
-            throw new RuntimeException("考试记录不存在");
+            throw new BusinessException("考试记录不存在");
         }
 
         Exam exam = examMapper.selectById(examRecord.getExamId());
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
 
         Paper paper = paperMapper.selectById(exam.getPaperId());
         if (paper == null) {
-            throw new RuntimeException("试卷不存在");
+            throw new BusinessException("试卷不存在");
         }
 
         LambdaQueryWrapper<PaperQuestion> wrapper = new LambdaQueryWrapper<>();
@@ -190,26 +189,26 @@ public class ExamRecordServiceImpl implements ExamRecordService {
     @Transactional
     public ExamSubmitResultVO submitExam(ExamSubmitDTO dto) {
         if (dto.getRecordId() == null) {
-            throw new RuntimeException("考试记录ID不能为空");
+            throw new BusinessException("考试记录ID不能为空");
         }
 
         ExamRecord examRecord = examRecordMapper.selectById(dto.getRecordId());
         if (examRecord == null) {
-            throw new RuntimeException("考试记录不存在");
+            throw new BusinessException("考试记录不存在");
         }
 
         if ("FINISHED".equals(examRecord.getStatus())) {
-            throw new RuntimeException("该考试已提交");
+            throw new BusinessException("该考试已提交");
         }
 
         Exam exam = examMapper.selectById(examRecord.getExamId());
         if (exam == null) {
-            throw new RuntimeException("考试不存在");
+            throw new BusinessException("考试不存在");
         }
 
         Paper paper = paperMapper.selectById(exam.getPaperId());
         if (paper == null) {
-            throw new RuntimeException("试卷不存在");
+            throw new BusinessException("试卷不存在");
         }
 
         LambdaQueryWrapper<PaperQuestion> wrapper = new LambdaQueryWrapper<>();
@@ -277,25 +276,66 @@ public class ExamRecordServiceImpl implements ExamRecordService {
     public ExamRecord getById(Integer id) {
         ExamRecord examRecord = examRecordMapper.selectById(id);
         if (examRecord == null) {
-            throw new RuntimeException("考试记录不存在");
+            throw new BusinessException("考试记录不存在");
         }
         return examRecord;
     }
 
     @Override
-    public List<ExamRecord> getByStudentId(Long studentId) {
+    public List<ExamRecordVO> getByStudentId(Long studentId) {
         LambdaQueryWrapper<ExamRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExamRecord::getStudentId, studentId)
                 .orderByDesc(ExamRecord::getId);
-        return examRecordMapper.selectList(wrapper);
+
+        List<ExamRecord> recordList = examRecordMapper.selectList(wrapper);
+        List<ExamRecordVO> voList = new ArrayList<>();
+
+        for (ExamRecord record : recordList) {
+            ExamRecordVO vo = new ExamRecordVO();
+            vo.setRecordId(record.getId());
+            vo.setExamId(record.getExamId());
+            vo.setScore(record.getScore());
+            vo.setIsPass(record.getIsPass());
+            vo.setSubmitTime(record.getSubmitTime());
+
+            Exam exam = examMapper.selectById(record.getExamId());
+            if (exam != null) {
+                vo.setExamName(exam.getExamName());
+            }
+
+            voList.add(vo);
+        }
+
+        return voList;
     }
 
     @Override
-    public List<ExamRecord> getByExamId(Integer examId) {
+    public List<ExamRecordTeacherVO> getByExamId(Integer examId) {
         LambdaQueryWrapper<ExamRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExamRecord::getExamId, examId)
                 .orderByDesc(ExamRecord::getId);
-        return examRecordMapper.selectList(wrapper);
+
+        List<ExamRecord> recordList = examRecordMapper.selectList(wrapper);
+        List<ExamRecordTeacherVO> voList = new ArrayList<>();
+
+        for (ExamRecord record : recordList) {
+            ExamRecordTeacherVO vo = new ExamRecordTeacherVO();
+            vo.setRecordId(record.getId());
+            vo.setExamId(record.getExamId());
+            vo.setStudentId(record.getStudentId());
+            vo.setScore(record.getScore());
+            vo.setIsPass(record.getIsPass());
+            vo.setSubmitTime(record.getSubmitTime());
+
+            SysUser student = sysUserMapper.selectById(record.getStudentId());
+            if (student != null) {
+                vo.setStudentName(student.getRealName());
+            }
+
+            voList.add(vo);
+        }
+
+        return voList;
     }
 
     private boolean compareAnswer(String userAnswer, String correctAnswer, String questionType) {
@@ -328,5 +368,43 @@ public class ExamRecordServiceImpl implements ExamRecordService {
         }
 
         return result.toUpperCase();
+    }
+
+    @Override
+    public ExamStatisticsVO getStatisticsByExamId(Integer examId) {
+        LambdaQueryWrapper<ExamRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ExamRecord::getExamId, examId)
+                .orderByDesc(ExamRecord::getId);
+
+        List<ExamRecord> recordList = examRecordMapper.selectList(wrapper);
+        if (CollectionUtils.isEmpty(recordList)) {
+            throw new BusinessException("该考试暂无成绩数据");
+        }
+
+        int total = 0;
+        int maxScore = Integer.MIN_VALUE;
+        int minScore = Integer.MAX_VALUE;
+
+        for (ExamRecord record : recordList) {
+            int score = record.getScore() == null ? 0 : record.getScore();
+            total += score;
+
+            if (score > maxScore) {
+                maxScore = score;
+            }
+
+            if (score < minScore) {
+                minScore = score;
+            }
+        }
+
+        double avgScore = (double) total / recordList.size();
+
+        ExamStatisticsVO vo = new ExamStatisticsVO();
+        vo.setAvgScore(avgScore);
+        vo.setMaxScore(maxScore);
+        vo.setMinScore(minScore);
+
+        return vo;
     }
 }

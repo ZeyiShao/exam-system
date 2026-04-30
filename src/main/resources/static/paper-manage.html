@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>试卷管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 24px 0;
+        }
+
+        @media (max-width: 900px) {
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">试卷管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">试卷操作</div>
+
+        <div class="top-actions">
+            <button class="btn btn-primary" onclick="goAddPaper()">新增试卷</button>
+            <button class="btn btn-gray" onclick="loadPaperList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">试卷列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 80px;">ID</th>
+                <th>试卷名称</th>
+                <th style="width: 100px;">总分</th>
+                <th style="width: 100px;">及格分</th>
+                <th style="width: 100px;">创建人</th>
+                <th style="width: 180px;">创建时间</th>
+                <th style="width: 260px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="paperTableBody">
+            <tr>
+                <td colspan="7">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let paperList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有试卷管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) {
+            return "";
+        }
+        return timeStr.replace("T", " ");
+    }
+
+    function goAddPaper() {
+        window.location.href = "paper-edit.html";
+    }
+
+    function goEditPaper(id) {
+        window.location.href = "paper-edit.html?id=" + id;
+    }
+
+    function goDetailPaper(id) {
+        window.location.href = "paper-detail.html?id=" + id;
+    }
+
+    async function deletePaper(id) {
+        const ok = confirm("确认删除该试卷吗？删除后该试卷与题目的关联也会被删除。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/paper/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadPaperList();
+        } catch (error) {
+            console.error("删除试卷失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadPaperList() {
+        const tbody = document.getElementById("paperTableBody");
+        tbody.innerHTML = `<tr><td colspan="7">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/paper/list");
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="7">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            paperList = result.data || [];
+
+            if (paperList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无试卷</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = paperList.map(paper => `
+                <tr>
+                    <td>${paper.id ?? ""}</td>
+                    <td>${paper.paperName || ""}</td>
+                    <td>${paper.totalScore ?? ""}</td>
+                    <td>${paper.passScore ?? ""}</td>
+                    <td>${paper.createUser ?? ""}</td>
+                    <td>${formatTime(paper.createTime)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
+                            <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">编辑</button>
+                            <button class="btn btn-danger" onclick="deletePaper(${paper.id})">删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载试卷列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="7">无法连接后端</td></tr>`;
+        }
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        loadPaperList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

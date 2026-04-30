@@ -1,0 +1,96 @@
+/* 全局重置 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Microsoft YaHei", Arial, sans-serif;
+}
+
+/* 页面背景 */
+body {
+    background: #f5f7fa;
+    color: #333;
+}
+
+/* 头部 */
+.header {
+    background: #409eff;
+    color: white;
+    padding: 16px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 容器 */
+.container {
+    width: 1100px;
+    max-width: calc(100% - 40px);
+    margin: 30px auto;
+}
+
+/* 卡片 */
+.card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* 按钮 */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #409eff;
+    color: white;
+}
+
+.btn-danger {
+    background: #f56c6c;
+    color: white;
+}
+
+.btn-gray {
+    background: #909399;
+    color: white;
+}
+
+/* 输入框 */
+.input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+}
+
+/* 标题 */
+.title {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+/* 表格 */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ebeef5;
+    padding: 10px;
+    text-align: center;
+}
+
+/* 提示 */
+.message {
+    color: red;
+    margin-top: 10px;
+}

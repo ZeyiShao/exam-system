@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑试卷 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .question-card {
+            border: 1px solid #ebeef5;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            background: #fcfcfd;
+        }
+
+        .question-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .question-title {
+            font-weight: bold;
+            line-height: 1.6;
+        }
+
+        .question-meta {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .score-input {
+            width: 90px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 800px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .question-top {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title" id="pageTitle">新增试卷</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">试卷基本信息</div>
+
+        <input type="hidden" id="paperId">
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>试卷名称</label>
+                <input class="input" id="paperName" placeholder="请输入试卷名称">
+            </div>
+
+            <div class="form-item">
+                <label>总分</label>
+                <input class="input" id="totalScore" type="number" placeholder="可点击“计算总分”自动生成">
+            </div>
+
+            <div class="form-item">
+                <label>及格分数</label>
+                <input class="input" id="passScore" type="number" placeholder="例如：60">
+            </div>
+
+            <div class="form-item">
+                <label>试卷时长（分钟）</label>
+                <input class="input" id="duration" type="number" placeholder="例如：90">
+            </div>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">选择题目</div>
+
+        <div class="toolbar">
+            <input class="input" style="width: 220px;" id="keyword" placeholder="按题目内容筛选">
+
+            <select class="input" style="width: 160px;" id="questionType">
+                <option value="">全部题型</option>
+                <option value="single">单选题</option>
+                <option value="multiple">多选题</option>
+                <option value="judge">判断题</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="renderQuestionList()">筛选</button>
+            <button class="btn btn-gray" onclick="clearFilter()">清空筛选</button>
+            <button class="btn btn-gray" onclick="calculateTotalScore()">计算总分</button>
+        </div>
+
+        <div id="questionList">题目加载中...</div>
+    </div>
+
+    <div class="card">
+        <div class="actions">
+            <button class="btn btn-primary" onclick="savePaper()">保存试卷</button>
+            <button class="btn btn-gray" onclick="goBack()">返回试卷管理</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let paperId = null;
+    let allQuestions = [];
+    let selectedQuestionMap = {};
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有试卷编辑权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function getIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("id");
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function goBack() {
+        window.location.href = "paper-manage.html";
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知题型";
+        }
+    }
+
+    async function loadQuestions() {
+        const box = document.getElementById("questionList");
+        box.innerHTML = "题目加载中...";
+
+        try {
+            const result = await get("/question/list");
+
+            if (result.code !== 200) {
+                box.innerHTML = result.message || "题目加载失败";
+                return;
+            }
+
+            allQuestions = result.data || [];
+            renderQuestionList();
+        } catch (error) {
+            console.error("加载题库失败：", error);
+            box.innerHTML = "无法连接后端";
+        }
+    }
+
+    async function loadPaperDetail(id) {
+        try {
+            const result = await get("/paper/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "加载试卷失败");
+                return;
+            }
+
+            const paper = result.data;
+
+            document.getElementById("pageTitle").textContent = "编辑试卷";
+            document.getElementById("paperId").value = paper.id;
+            document.getElementById("paperName").value = paper.paperName || "";
+            document.getElementById("totalScore").value = paper.totalScore || "";
+            document.getElementById("passScore").value = paper.passScore || "";
+            document.getElementById("duration").value = paper.duration || "";
+
+            selectedQuestionMap = {};
+
+            (paper.questionList || []).forEach(q => {
+                selectedQuestionMap[q.questionId] = {
+                    questionId: q.questionId,
+                    score: q.score || 0
+                };
+            });
+
+            renderQuestionList();
+        } catch (error) {
+            console.error("加载试卷详情失败：", error);
+            showMessage("无法连接后端");
+        }
+    }
+
+    function clearFilter() {
+        document.getElementById("keyword").value = "";
+        document.getElementById("questionType").value = "";
+        renderQuestionList();
+    }
+
+    function getFilteredQuestions() {
+        const keyword = document.getElementById("keyword").value.trim();
+        const type = document.getElementById("questionType").value;
+
+        return allQuestions.filter(q => {
+            const matchKeyword = !keyword || (q.questionText || "").includes(keyword);
+            const matchType = !type || q.questionType === type;
+            return matchKeyword && matchType;
+        });
+    }
+
+    function renderQuestionList() {
+        const box = document.getElementById("questionList");
+        const list = getFilteredQuestions();
+
+        if (list.length === 0) {
+            box.innerHTML = '<div class="message">暂无符合条件的题目</div>';
+            return;
+        }
+
+        box.innerHTML = list.map(q => {
+            const selected = selectedQuestionMap[q.id] !== undefined;
+            const score = selected ? selectedQuestionMap[q.id].score : "";
+
+            return `
+                <div class="question-card">
+                    <div class="question-top">
+                        <label class="question-title">
+                            <input type="checkbox"
+                                   ${selected ? "checked" : ""}
+                                   onchange="toggleQuestion(${q.id}, this.checked)">
+                            ${q.questionText || ""}
+                        </label>
+
+                        <div>
+                            分值：
+                            <input class="input score-input"
+                                   type="number"
+                                   min="0"
+                                   value="${score}"
+                                   onchange="changeQuestionScore(${q.id}, this.value)">
+                        </div>
+                    </div>
+
+                    <div class="question-meta">
+                        <div>题目ID：${q.id} ｜ 题型：${getQuestionTypeText(q.questionType)} ｜ 课程：${q.course || ""} ｜ 难度：${q.difficulty ?? ""}</div>
+                        <div>A：${q.optionA || ""}</div>
+                        <div>B：${q.optionB || ""}</div>
+                        <div>C：${q.optionC || ""}</div>
+                        <div>D：${q.optionD || ""}</div>
+                        <div>正确答案：${q.correctAnswer || ""}</div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function toggleQuestion(questionId, checked) {
+        if (checked) {
+            if (!selectedQuestionMap[questionId]) {
+                selectedQuestionMap[questionId] = {
+                    questionId: questionId,
+                    score: 0
+                };
+            }
+        } else {
+            delete selectedQuestionMap[questionId];
+        }
+
+        calculateTotalScore();
+        renderQuestionList();
+    }
+
+    function changeQuestionScore(questionId, value) {
+        if (!selectedQuestionMap[questionId]) {
+            selectedQuestionMap[questionId] = {
+                questionId: questionId,
+                score: 0
+            };
+        }
+
+        selectedQuestionMap[questionId].score = Number(value || 0);
+        calculateTotalScore();
+    }
+
+    function calculateTotalScore() {
+        let total = 0;
+
+        Object.values(selectedQuestionMap).forEach(item => {
+            total += Number(item.score || 0);
+        });
+
+        document.getElementById("totalScore").value = total;
+    }
+
+    function buildPaperData() {
+        const id = document.getElementById("paperId").value;
+        const paperName = document.getElementById("paperName").value.trim();
+        const totalScore = document.getElementById("totalScore").value;
+        const passScore = document.getElementById("passScore").value;
+        const duration = document.getElementById("duration").value;
+
+        if (!paperName) {
+            showMessage("请输入试卷名称");
+            return null;
+        }
+
+        const questionList = Object.values(selectedQuestionMap)
+            .filter(item => Number(item.score) > 0)
+            .map(item => ({
+                questionId: Number(item.questionId),
+                score: Number(item.score)
+            }));
+
+        if (questionList.length === 0) {
+            showMessage("请至少选择一道题目，并设置大于0的分值");
+            return null;
+        }
+
+        if (!totalScore || Number(totalScore) <= 0) {
+            showMessage("总分必须大于0");
+            return null;
+        }
+
+        if (!passScore || Number(passScore) <= 0) {
+            showMessage("及格分数必须大于0");
+            return null;
+        }
+
+        if (!duration || Number(duration) <= 0) {
+            showMessage("试卷时长必须大于0");
+            return null;
+        }
+
+        const data = {
+            paperName: paperName,
+            totalScore: Number(totalScore),
+            duration: Number(duration),
+            passScore: Number(passScore),
+            createUser: Number(currentUser.id),
+            questionList: questionList
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        return data;
+    }
+
+    async function savePaper() {
+        const data = buildPaperData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/paper", data)
+                : await post("/paper", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            alert(result.message || "保存成功");
+            window.location.href = "paper-manage.html";
+        } catch (error) {
+            console.error("保存试卷失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        paperId = getIdFromUrl();
+
+        await loadQuestions();
+
+        if (paperId) {
+            await loadPaperDetail(paperId);
+        }
+    }
+
+    initPage();
+</script>
+</body>
+</html>

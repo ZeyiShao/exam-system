@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩统计 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .toolbar select {
+            width: 460px;
+        }
+
+        .exam-info-box {
+            background: #f8fbff;
+            border: 1px solid #e6f1fc;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 18px;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .statistics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .stat-card {
+            background: #f8fbff;
+            border: 1px solid #e6f1fc;
+            border-radius: 12px;
+            padding: 26px 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #409eff;
+        }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 30px 0;
+        }
+
+        @media (max-width: 800px) {
+            .toolbar select {
+                width: 100%;
+            }
+
+            .statistics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">成绩统计</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">选择考试</div>
+
+        <div class="toolbar">
+            <select class="input" id="examSelect">
+                <option value="">请选择考试</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="loadStatistics()">查看统计</button>
+            <button class="btn btn-gray" onclick="loadExamList()">刷新考试</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">统计结果</div>
+        <div id="statisticsBox">
+            <div class="empty">请选择考试后查看统计结果</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let examList = [];
+    let classList = [];
+    let courseList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有成绩统计权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(timeStr) {
+        if (!timeStr) {
+            return "暂无";
+        }
+        return timeStr.replace("T", " ");
+    }
+
+    function getClassName(id) {
+        const cls = classList.find(item => Number(item.id) === Number(id));
+        return cls ? cls.className : "班级ID：" + id;
+    }
+
+    function getCourseName(id) {
+        const course = courseList.find(item => Number(item.id) === Number(id));
+        return course ? course.courseName : "课程ID：" + id;
+    }
+
+    function getSelectedExam() {
+        const examId = document.getElementById("examSelect").value;
+        if (!examId) return null;
+        return examList.find(item => Number(item.id) === Number(examId));
+    }
+
+    async function loadBaseData() {
+        try {
+            const [classRes, courseRes] = await Promise.all([
+                get("/class/list"),
+                get("/course/list")
+            ]);
+
+            if (classRes.code === 200) {
+                classList = classRes.data || [];
+            }
+
+            if (courseRes.code === 200) {
+                courseList = courseRes.data || [];
+            }
+        } catch (error) {
+            console.error("加载基础数据失败：", error);
+            showMessage("部分名称数据加载失败，可能显示ID");
+        }
+    }
+
+    function renderExamSelect() {
+        const select = document.getElementById("examSelect");
+
+        select.innerHTML = `<option value="">请选择考试</option>` +
+            examList.map(exam => `
+                <option value="${exam.id}">
+                    ${exam.examName || "未命名考试"} ｜ ${getClassName(exam.classId)} ｜ ${getCourseName(exam.courseId)}
+                </option>
+            `).join("");
+    }
+
+    async function loadExamList() {
+        showMessage("");
+
+        try {
+            const result = await get("/exam/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "考试列表加载失败");
+                return;
+            }
+
+            examList = result.data || [];
+            renderExamSelect();
+        } catch (error) {
+            console.error("加载考试列表失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadStatistics() {
+        const examId = document.getElementById("examSelect").value;
+        const box = document.getElementById("statisticsBox");
+
+        showMessage("");
+
+        if (!examId) {
+            showMessage("请先选择考试");
+            return;
+        }
+
+        const selectedExam = getSelectedExam();
+
+        box.innerHTML = `<div class="empty">统计数据加载中...</div>`;
+
+        try {
+            const result = await get("/examRecord/statistics/" + examId);
+
+            if (result.code !== 200) {
+                box.innerHTML = `<div class="empty">${result.message || "暂无统计数据"}</div>`;
+                return;
+            }
+
+            const data = result.data || {};
+
+            box.innerHTML = `
+                <div class="exam-info-box">
+                    <div><b>考试名称：</b>${selectedExam?.examName || "未知考试"}</div>
+                    <div><b>班级：</b>${getClassName(selectedExam?.classId)}</div>
+                    <div><b>课程：</b>${getCourseName(selectedExam?.courseId)}</div>
+                    <div><b>考试时间：</b>${formatTime(selectedExam?.startTime)} 至 ${formatTime(selectedExam?.endTime)}</div>
+                </div>
+
+                <div class="statistics-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">平均分</div>
+                        <div class="stat-value">${Number(data.avgScore || 0).toFixed(1)}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">最高分</div>
+                        <div class="stat-value">${data.maxScore ?? 0}</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">最低分</div>
+                        <div class="stat-value">${data.minScore ?? 0}</div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error("加载统计数据失败：", error);
+            box.innerHTML = `<div class="empty">无法连接后端</div>`;
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        await loadBaseData();
+        await loadExamList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

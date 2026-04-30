@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>教师-课程管理 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .form-card {
+            display: none;
+        }
+
+        .form-card.show {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">教师-课程管理</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">关系操作</div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="showAddForm()">新增教师-课程关系</button>
+            <button class="btn btn-gray" onclick="loadRelationList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card form-card" id="formCard">
+        <div class="title">新增教师-课程关系</div>
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>教师</label>
+                <select class="input" id="teacherId">
+                    <option value="">请选择教师</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>课程</label>
+                <select class="input" id="courseId">
+                    <option value="">请选择课程</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveRelation()">保存关系</button>
+            <button class="btn btn-gray" onclick="hideForm()">取消</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">教师-课程关系列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 80px;">ID</th>
+                <th>教师</th>
+                <th>课程</th>
+                <th>课程编号</th>
+                <th style="width: 140px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="relationTableBody">
+            <tr>
+                <td colspan="5">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let relationList = [];
+    let teacherList = [];
+    let courseList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有教师-课程管理权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function showAddForm() {
+        clearForm();
+        document.getElementById("formCard").classList.add("show");
+    }
+
+    function hideForm() {
+        document.getElementById("formCard").classList.remove("show");
+        clearForm();
+    }
+
+    function clearForm() {
+        document.getElementById("teacherId").value = "";
+        document.getElementById("courseId").value = "";
+        showMessage("");
+    }
+
+    function getTeacherName(id) {
+        const teacher = teacherList.find(item => Number(item.id) === Number(id));
+        return teacher ? (teacher.realName || teacher.username) : "ID：" + id;
+    }
+
+    function getCourseName(id) {
+        const course = courseList.find(item => Number(item.id) === Number(id));
+        return course ? course.courseName : "ID：" + id;
+    }
+
+    function getCourseCode(id) {
+        const course = courseList.find(item => Number(item.id) === Number(id));
+        return course ? (course.courseCode || "") : "";
+    }
+
+    function renderSelectOptions() {
+        const teacherSelect = document.getElementById("teacherId");
+        const courseSelect = document.getElementById("courseId");
+
+        teacherSelect.innerHTML = `<option value="">请选择教师</option>` +
+            teacherList.map(item => `
+                <option value="${item.id}">
+                    ${item.realName || item.username}（ID：${item.id}）
+                </option>
+            `).join("");
+
+        courseSelect.innerHTML = `<option value="">请选择课程</option>` +
+            courseList.map(item => `
+                <option value="${item.id}">
+                    ${item.courseName || "未命名课程"}（${item.courseCode || "无编号"}）
+                </option>
+            `).join("");
+    }
+
+    async function loadBaseData() {
+        try {
+            const [userRes, courseRes] = await Promise.all([
+                get("/user/list"),
+                get("/course/list")
+            ]);
+
+            if (userRes.code === 200) {
+                teacherList = (userRes.data || []).filter(user => user.role === "TEACHER");
+            }
+
+            if (courseRes.code === 200) {
+                courseList = courseRes.data || [];
+            }
+
+            renderSelectOptions();
+        } catch (error) {
+            console.error("加载基础数据失败：", error);
+            showMessage("加载教师或课程数据失败");
+        }
+    }
+
+    async function loadRelationList() {
+        const tbody = document.getElementById("relationTableBody");
+        tbody.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/teacherCourse/list");
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="5">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            relationList = result.data || [];
+
+            if (relationList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5">暂无教师-课程关系</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = relationList.map(item => `
+                <tr>
+                    <td>${item.id ?? ""}</td>
+                    <td>${item.teacherName || item.teacherRealName || getTeacherName(item.teacherId)}（ID：${item.teacherId ?? ""}）</td>
+                    <td>${item.courseName || getCourseName(item.courseId)}（ID：${item.courseId ?? ""}）</td>
+                    <td>${item.courseCode || getCourseCode(item.courseId)}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteRelation(${item.id})">删除</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载教师-课程关系列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="5">无法连接后端</td></tr>`;
+        }
+    }
+
+    function buildRelationData() {
+        const teacherId = document.getElementById("teacherId").value;
+        const courseId = document.getElementById("courseId").value;
+
+        if (!teacherId) {
+            showMessage("请选择教师");
+            return null;
+        }
+
+        if (!courseId) {
+            showMessage("请选择课程");
+            return null;
+        }
+
+        return {
+            teacherId: Number(teacherId),
+            courseId: Number(courseId)
+        };
+    }
+
+    async function saveRelation() {
+        const data = buildRelationData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = await post("/teacherCourse/add", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "保存失败");
+                return;
+            }
+
+            showMessage(result.message || "保存成功");
+            hideForm();
+            loadRelationList();
+        } catch (error) {
+            console.error("保存教师-课程关系失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function deleteRelation(id) {
+        const ok = confirm("确认删除该教师-课程关系吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await del("/teacherCourse/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "删除失败");
+                return;
+            }
+
+            showMessage(result.message || "删除成功");
+            loadRelationList();
+        } catch (error) {
+            console.error("删除教师-课程关系失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+
+        await loadBaseData();
+        await loadRelationList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

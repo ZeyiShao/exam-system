@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员首页 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .welcome {
+            margin-bottom: 24px;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .welcome-desc {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 24px 0 12px 0;
+            color: #303133;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card-item {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #ebeef5;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .card-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            border-color: #409eff;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="title">管理员首页</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="card welcome">
+        <div class="welcome-title">欢迎进入管理员系统</div>
+        <div class="welcome-desc">
+            管理员可以对系统中的用户、班级、课程以及授课关系进行统一管理，
+            同时也可以进入教师端功能查看考试、试卷和成绩信息。
+        </div>
+    </div>
+
+    <!-- 用户管理 -->
+    <div class="section-title">用户与基础数据管理</div>
+    <div class="grid">
+        <div class="card-item" onclick="goPage('user-manage.html')">
+            <div class="card-title">用户管理</div>
+            <div class="card-desc">
+                管理系统用户，包括学生、教师和管理员账号的新增、编辑和删除。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('class-manage.html')">
+            <div class="card-title">班级管理</div>
+            <div class="card-desc">
+                创建和维护班级信息，管理班级基本数据。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('course-manage.html')">
+            <div class="card-title">课程管理</div>
+            <div class="card-desc">
+                管理课程信息，为考试和题库提供课程基础数据。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('student-class-manage.html')">
+            <div class="card-title">学生-班级管理</div>
+            <div class="card-desc">
+                管理学生加入班级的关系，一个学生可以属于多个班级。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('teacher-course-manage.html')">
+            <div class="card-title">教师-课程管理</div>
+            <div class="card-desc">
+                管理教师与课程之间的基础授课关系，为班级授课关系提供数据支持。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('class-course-teacher.html')">
+            <div class="card-title">授课关系管理</div>
+            <div class="card-desc">
+                管理班级、课程与教师之间的关系，是考试创建权限的核心。
+            </div>
+        </div>
+    </div>
+
+    <!-- 教学功能 -->
+    <div class="section-title">教学与考试管理</div>
+    <div class="grid">
+        <div class="card-item" onclick="goPage('question-manage.html')">
+            <div class="card-title">题库管理</div>
+            <div class="card-desc">
+                查看和维护题库内容，包括单选题、多选题和判断题。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('paper-manage.html')">
+            <div class="card-title">试卷管理</div>
+            <div class="card-desc">
+                创建试卷、配置题目和分值，并查看试卷详情。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('exam-manage.html')">
+            <div class="card-title">考试管理</div>
+            <div class="card-desc">
+                创建考试，设置考试时间、班级和试卷。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('exam-score.html')">
+            <div class="card-title">成绩查看</div>
+            <div class="card-desc">
+                查看学生考试成绩、提交时间和是否通过。
+            </div>
+        </div>
+
+        <div class="card-item" onclick="goPage('exam-statistics.html')">
+            <div class="card-title">成绩统计</div>
+            <div class="card-desc">
+                查看平均分、最高分、最低分等统计信息。
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let currentUser = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有管理员权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function goPage(url) {
+        window.location.href = url;
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（管理员）";
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

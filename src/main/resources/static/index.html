@@ -9,31 +9,272 @@
     <script src="js/common.js"></script>
 
     <style>
-        body { background: #f5f5f5; margin: 0; font-family: Arial, sans-serif; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #409eff; color: white; }
-        .header .title { font-size: 24px; font-weight: bold; }
-        .header .user-box { font-size: 14px; }
-        .container { padding: 20px; max-width: 1200px; margin: auto; }
-        .exam-card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 18px; border: 1px solid #e6e6e6; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-        .exam-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-        .exam-detail { font-size: 14px; color: #555; line-height: 1.8; }
-        .status-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; color: white; font-size: 12px; margin-top: 6px; }
-        .status-not { background: #409eff; }       /* 未开始 */
-        .status-doing { background: #e6a23c; }    /* 进行中 */
-        .status-finished { background: #67c23a; } /* 已结束 */
+        body {
+            background: #f5f7fb;
+            margin: 0;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            color: #303133;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 28px;
+            background: #409eff;
+            color: white;
+        }
+
+        .header .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header .user-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 14px;
+            flex-wrap: wrap;
+        }
+
+        .header .link-btn {
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            background: transparent;
+            color: white;
+            padding: 7px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .header .link-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .container {
+            padding: 24px;
+            max-width: 1180px;
+            margin: auto;
+        }
+
+        .hero {
+            background: white;
+            border-radius: 14px;
+            padding: 32px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            margin-bottom: 22px;
+        }
+
+        .hero-title {
+            font-size: 30px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .hero-desc {
+            color: #666;
+            line-height: 1.8;
+            font-size: 15px;
+            max-width: 820px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        .notice {
+            margin-top: 18px;
+            padding: 14px 16px;
+            background: #f0f7ff;
+            border: 1px solid #d9ecff;
+            color: #337ecc;
+            border-radius: 10px;
+            line-height: 1.8;
+            font-size: 14px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+            margin-bottom: 22px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .exam-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .exam-card {
+            border: 1px solid #ebeef5;
+            border-radius: 12px;
+            padding: 18px;
+            background: #fcfcfd;
+        }
+
+        .exam-card.ongoing {
+            border-color: #e6a23c;
+            background: #fffaf0;
+        }
+
+        .exam-title {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .exam-detail {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.9;
+        }
+
+        .status-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        .status-not {
+            background: #409eff;
+        }
+
+        .status-doing {
+            background: #e6a23c;
+        }
+
+        .exam-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .empty {
+            color: #999;
+            padding: 18px 0;
+            text-align: center;
+        }
+
+        .feature-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .feature-item {
+            background: #f8fbff;
+            border: 1px solid #e6f1fc;
+            border-radius: 12px;
+            padding: 16px;
+            line-height: 1.7;
+        }
+
+        .feature-title {
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #303133;
+        }
+
+        .feature-desc {
+            color: #666;
+            font-size: 13px;
+        }
+
         @media (max-width: 900px) {
-            .container { padding: 10px; }
+            .container {
+                padding: 14px;
+            }
+
+            .hero {
+                padding: 24px 18px;
+            }
+
+            .exam-grid,
+            .feature-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
         }
     </style>
 </head>
+
 <body>
 <div class="header">
-    <div class="title">在线考试系统</div>
-    <div class="user-box" id="userBox">未登录</div>
+    <div class="title">在线考试与题库管理系统</div>
+    <div class="user-box">
+        <span id="userBox">未登录</span>
+        <button class="link-btn" id="homeBtn" onclick="goHomePage()" style="display:none;">进入首页</button>
+        <button class="link-btn" id="loginBtn" onclick="goLogin()">登录系统</button>
+        <button class="link-btn" id="logoutBtn" onclick="logout()" style="display:none;">退出登录</button>
+    </div>
 </div>
 
-<div class="container" id="examContainer">
-    <!-- 考试卡片列表 -->
+<div class="container">
+    <div class="hero">
+        <div class="hero-title">欢迎使用在线考试与题库管理系统</div>
+        <div class="hero-desc">
+            本系统面向课程考试场景，支持题库管理、试卷管理、随机组卷、考试发布、在线答题、成绩查询与统计等功能，
+            帮助教师和学生更高效地完成考试组织与学习评价。
+        </div>
+
+        <div class="hero-actions">
+            <button class="btn btn-primary" id="mainActionBtn" onclick="handleMainAction()">登录系统</button>
+            <button class="btn btn-gray" onclick="loadBaseData()">刷新考试提醒</button>
+        </div>
+
+        <div class="notice" id="loginNotice">
+            当前未登录。登录后系统会根据您的角色进入对应首页。
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">考试提醒</div>
+        <div id="examContainer">
+            <div class="empty">考试信息加载中...</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">系统说明</div>
+        <div class="feature-row">
+            <div class="feature-item">
+                <div class="feature-title">在线考试</div>
+                <div class="feature-desc">学生可在规定时间内进入考试并完成在线答题。</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-title">题库管理</div>
+                <div class="feature-desc">支持单选题、多选题、判断题的分类维护。</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-title">灵活组卷</div>
+                <div class="feature-desc">支持人工组卷和按课程、难度随机组卷。</div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-title">成绩管理</div>
+                <div class="feature-desc">支持考试成绩查询、通过判断与统计分析。</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -41,16 +282,94 @@
     let examList = [];
     let classList = [];
     let courseList = [];
+    let redirectTimer = null;
+    let redirectSeconds = 3;
 
     function checkLoginStatus() {
-        const user = getUser();
-        currentUser = user;
-        const box = document.getElementById("userBox");
+        currentUser = getUser();
 
-        if (user) {
-            box.textContent = `当前用户：${user.realName}（${user.role}）`;
+        const userBox = document.getElementById("userBox");
+        const loginBtn = document.getElementById("loginBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+        const homeBtn = document.getElementById("homeBtn");
+        const mainActionBtn = document.getElementById("mainActionBtn");
+        const loginNotice = document.getElementById("loginNotice");
+
+        if (currentUser) {
+            userBox.textContent = `当前用户：${currentUser.realName || currentUser.username}（${currentUser.role}）`;
+            loginBtn.style.display = "none";
+            logoutBtn.style.display = "inline-block";
+            homeBtn.style.display = "inline-block";
+            mainActionBtn.textContent = "立即进入首页";
+
+            loginNotice.innerHTML =
+                `欢迎回来，${currentUser.realName || currentUser.username}。系统将在 <b id="countdownText">${redirectSeconds}</b> 秒后自动进入您的首页。`;
+
+            startAutoRedirect();
         } else {
-            box.textContent = "未登录";
+            userBox.textContent = "未登录";
+            loginBtn.style.display = "inline-block";
+            logoutBtn.style.display = "none";
+            homeBtn.style.display = "none";
+            mainActionBtn.textContent = "登录系统";
+            loginNotice.textContent = "当前未登录。登录后系统会根据您的角色进入对应首页。";
+        }
+    }
+
+    function startAutoRedirect() {
+        clearInterval(redirectTimer);
+
+        let seconds = redirectSeconds;
+        const countdownText = document.getElementById("countdownText");
+
+        redirectTimer = setInterval(() => {
+            seconds -= 1;
+
+            if (countdownText) {
+                countdownText.textContent = seconds;
+            }
+
+            if (seconds <= 0) {
+                clearInterval(redirectTimer);
+                goHomePage();
+            }
+        }, 1000);
+    }
+
+    function getHomePageByRole(role) {
+        if (role === "ADMIN") {
+            return "admin-home.html";
+        }
+
+        if (role === "TEACHER") {
+            return "teacher-home.html";
+        }
+
+        if (role === "STUDENT") {
+            return "student-home.html";
+        }
+
+        return "login.html";
+    }
+
+    function goHomePage() {
+        if (!currentUser) {
+            window.location.href = "login.html";
+            return;
+        }
+
+        window.location.href = getHomePageByRole(currentUser.role);
+    }
+
+    function goLogin() {
+        window.location.href = "login.html";
+    }
+
+    function handleMainAction() {
+        if (currentUser) {
+            goHomePage();
+        } else {
+            goLogin();
         }
     }
 
@@ -69,59 +388,121 @@
     }
 
     function getExamStatus(exam) {
+        if (!exam.startTime || !exam.endTime) {
+            return exam.status || "UNKNOWN";
+        }
+
         const now = new Date();
-        const start = new Date(exam.startTime.replace("T"," "));
-        const end = new Date(exam.endTime.replace("T"," "));
-        if (now < start) return "NOT_STARTED";
-        if (now > end) return "FINISHED";
+        const start = new Date(exam.startTime.replace("T", " "));
+        const end = new Date(exam.endTime.replace("T", " "));
+
+        if (now < start) {
+            return "NOT_STARTED";
+        }
+
+        if (now > end) {
+            return "FINISHED";
+        }
+
         return "ONGOING";
     }
 
     function getStatusText(status) {
-        switch(status) {
-            case "NOT_STARTED": return "未开始";
-            case "ONGOING": return "进行中";
-            case "FINISHED": return "已结束";
-            default: return status;
+        switch (status) {
+            case "NOT_STARTED":
+                return "即将开始";
+            case "ONGOING":
+            case "DOING":
+                return "正在进行";
+            default:
+                return status || "未知";
         }
     }
 
     function getStatusClass(status) {
-        switch(status) {
-            case "NOT_STARTED": return "status-not";
-            case "ONGOING": return "status-doing";
-            case "FINISHED": return "status-finished";
-            default: return "";
+        switch (status) {
+            case "NOT_STARTED":
+                return "status-not";
+            case "ONGOING":
+            case "DOING":
+                return "status-doing";
+            default:
+                return "status-not";
         }
+    }
+
+    function getExamActionButton(exam, status) {
+        if (!currentUser) {
+            return `<button class="btn btn-primary" onclick="goLogin()">登录后查看</button>`;
+        }
+
+        if (currentUser.role === "STUDENT") {
+            if (status === "ONGOING" || status === "DOING") {
+                return `<button class="btn btn-primary" onclick="window.location.href='exam-start.html?examId=${exam.id}'">进入考试</button>`;
+            }
+
+            return `<button class="btn btn-gray" onclick="goHomePage()">进入学生首页</button>`;
+        }
+
+        if (currentUser.role === "TEACHER" || currentUser.role === "ADMIN") {
+            return `<button class="btn btn-primary" onclick="window.location.href='exam-detail.html?id=${exam.id}'">查看考试</button>`;
+        }
+
+        return "";
     }
 
     function renderExamList() {
         const container = document.getElementById("examContainer");
+
         if (!examList || examList.length === 0) {
-            container.innerHTML = `<div class="exam-card">暂无考试信息</div>`;
+            container.innerHTML = `<div class="empty">暂无考试信息</div>`;
             return;
         }
 
-        container.innerHTML = examList.map(exam => {
-            const status = getExamStatus(exam);
-            return `
-                <div class="exam-card">
-                    <div class="exam-title">${exam.examName}</div>
-                    <div class="exam-detail">
-                        <div>班级：${getClassName(exam.classId)}</div>
-                        <div>课程：${getCourseName(exam.courseId)}</div>
-                        <div>开始时间：${formatTime(exam.startTime)}</div>
-                        <div>结束时间：${formatTime(exam.endTime)}</div>
-                        <div>考试时长：${exam.duration ?? ""} 分钟</div>
-                        <div>及格分：${exam.passScore ?? ""}</div>
-                        <div class="status-tag ${getStatusClass(status)}">${getStatusText(status)}</div>
+        const displayList = examList
+            .map(exam => ({
+                ...exam,
+                realStatus: getExamStatus(exam)
+            }))
+            .filter(exam => exam.realStatus === "ONGOING" || exam.realStatus === "DOING" || exam.realStatus === "NOT_STARTED")
+            .sort((a, b) => new Date(a.startTime.replace("T", " ")) - new Date(b.startTime.replace("T", " ")))
+            .slice(0, 5);
+
+        if (displayList.length === 0) {
+            container.innerHTML = `<div class="empty">暂无正在进行或即将开始的考试</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="exam-grid">
+                ${displayList.map(exam => `
+                    <div class="exam-card ${exam.realStatus === "ONGOING" || exam.realStatus === "DOING" ? "ongoing" : ""}">
+                        <div class="exam-title">
+                            ${exam.examName || ""}
+                            <span class="status-tag ${getStatusClass(exam.realStatus)}">${getStatusText(exam.realStatus)}</span>
+                        </div>
+
+                        <div class="exam-detail">
+                            <div>班级：${getClassName(exam.classId)}</div>
+                            <div>课程：${getCourseName(exam.courseId)}</div>
+                            <div>开始时间：${formatTime(exam.startTime)}</div>
+                            <div>结束时间：${formatTime(exam.endTime)}</div>
+                            <div>考试时长：${exam.duration ?? ""} 分钟</div>
+                        </div>
+
+                        <div class="exam-actions">
+                            ${getExamActionButton(exam, exam.realStatus)}
+                        </div>
                     </div>
-                </div>
-            `;
-        }).join("");
+                `).join("")}
+            </div>
+        `;
     }
 
     async function loadBaseData() {
+        const container = document.getElementById("examContainer");
+        container.innerHTML = `<div class="empty">考试信息加载中...</div>`;
+
         try {
             const [classRes, courseRes, examRes] = await Promise.all([
                 get("/class/list"),
@@ -129,15 +510,22 @@
                 get("/exam/list")
             ]);
 
-            if (classRes.code === 200) classList = classRes.data || [];
-            if (courseRes.code === 200) courseList = courseRes.data || [];
-            if (examRes.code === 200) examList = examRes.data || [];
+            if (classRes.code === 200) {
+                classList = classRes.data || [];
+            }
+
+            if (courseRes.code === 200) {
+                courseList = courseRes.data || [];
+            }
+
+            if (examRes.code === 200) {
+                examList = examRes.data || [];
+            }
 
             renderExamList();
         } catch (error) {
             console.error("加载考试信息失败：", error);
-            const container = document.getElementById("examContainer");
-            container.innerHTML = `<div class="exam-card">无法加载考试信息</div>`;
+            container.innerHTML = `<div class="empty">无法加载考试提醒，请检查后端服务是否启动</div>`;
         }
     }
 

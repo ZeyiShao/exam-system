@@ -24,6 +24,17 @@
             flex-wrap: wrap;
         }
 
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .search-bar .input {
+            width: 240px;
+        }
+
         .table th,
         .table td {
             vertical-align: middle;
@@ -42,6 +53,27 @@
             padding: 24px 0;
         }
 
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .page-size-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .page-size-box select {
+            width: 90px;
+        }
+
         @media (max-width: 900px) {
             .table {
                 font-size: 12px;
@@ -51,6 +83,10 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
+            }
+
+            .search-bar .input {
+                width: 100%;
             }
         }
     </style>
@@ -70,10 +106,26 @@
         <div class="title">试卷操作</div>
 
         <div class="top-actions">
-            <!-- 新增试卷跳转到独立页面 -->
             <button class="btn btn-primary" onclick="window.location.href='paper-edit.html'">新增试卷</button>
-            <button class="btn btn-gray" onclick="loadPaperList()">刷新列表</button>
+            <button class="btn btn-primary" onclick="goRandomPaper()">随机组卷</button>
+            <button class="btn btn-gray" onclick="loadPaperPage()">刷新列表</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="search-bar">
+            <input class="input" id="searchPaperName" placeholder="请输入试卷名称关键字">
+            <button class="btn btn-primary" onclick="searchPaper()">搜索</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+
+            <div class="page-size-box">
+                <span>每页</span>
+                <select class="input" id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="5">5 条</option>
+                    <option value="10" selected>10 条</option>
+                    <option value="20">20 条</option>
+                    <option value="50">50 条</option>
+                </select>
+            </div>
         </div>
 
         <div id="message" class="message"></div>
@@ -100,12 +152,21 @@
             </tr>
             </tbody>
         </table>
+
+        <div class="pagination">
+            <button class="btn btn-gray" onclick="prevPage()">上一页</button>
+            <span id="pageInfo">第 1 页</span>
+            <button class="btn btn-gray" onclick="nextPage()">下一页</button>
+        </div>
     </div>
 </div>
 
 <script>
     let currentUser = null;
     let paperList = [];
+    let pageNum = 1;
+    let pageSize = 10;
+    let total = 0;
 
     function checkLogin() {
         const user = getUser();
@@ -134,14 +195,124 @@
         return timeStr.replace("T", " ");
     }
 
-    // 编辑试卷跳转到独立页面
+    function goRandomPaper() {
+        window.location.href = "paper-random.html";
+    }
+
     function goEditPaper(id) {
         window.location.href = "paper-edit.html?id=" + id;
     }
 
-    // 查看试卷详情
     function goDetailPaper(id) {
         window.location.href = "paper-detail.html?id=" + id;
+    }
+
+    function buildPageParams() {
+        const paperName = document.getElementById("searchPaperName").value.trim();
+
+        const params = new URLSearchParams();
+        params.append("pageNum", String(pageNum));
+        params.append("pageSize", String(pageSize));
+
+        if (paperName) {
+            params.append("paperName", paperName);
+        }
+
+        return params;
+    }
+
+    async function loadPaperPage() {
+        const tbody = document.getElementById("paperTableBody");
+        tbody.innerHTML = `<tr><td colspan="7">加载中...</td></tr>`;
+        showMessage("");
+
+        try {
+            const result = await get("/paper/page?" + buildPageParams().toString());
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="7">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            paperList = result.data?.records || [];
+            total = Number(result.data?.total || 0);
+
+            renderPaperTable();
+            renderPageInfo();
+        } catch (error) {
+            console.error("加载试卷列表失败：", error);
+            tbody.innerHTML = `<tr><td colspan="7">无法连接后端</td></tr>`;
+        }
+    }
+
+    function renderPaperTable() {
+        const tbody = document.getElementById("paperTableBody");
+
+        if (paperList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无试卷</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = paperList.map(paper => `
+            <tr>
+                <td>${paper.id ?? ""}</td>
+                <td>${paper.paperName || ""}</td>
+                <td>${paper.totalScore ?? ""}</td>
+                <td>${paper.passScore ?? ""}</td>
+                <td>${paper.createUser ?? ""}</td>
+                <td>${formatTime(paper.createTime)}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
+                        <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="deletePaper(${paper.id})">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join("");
+    }
+
+    function renderPageInfo() {
+        const totalPage = Math.max(1, Math.ceil(total / pageSize));
+        document.getElementById("pageInfo").textContent =
+            `第 ${pageNum} / ${totalPage} 页，共 ${total} 条`;
+    }
+
+    function searchPaper() {
+        pageNum = 1;
+        loadPaperPage();
+    }
+
+    function clearSearch() {
+        document.getElementById("searchPaperName").value = "";
+        pageNum = 1;
+        loadPaperPage();
+    }
+
+    function changePageSize() {
+        pageSize = Number(document.getElementById("pageSizeSelect").value);
+        pageNum = 1;
+        loadPaperPage();
+    }
+
+    function prevPage() {
+        if (pageNum <= 1) {
+            return;
+        }
+
+        pageNum -= 1;
+        loadPaperPage();
+    }
+
+    function nextPage() {
+        const totalPage = Math.max(1, Math.ceil(total / pageSize));
+
+        if (pageNum >= totalPage) {
+            return;
+        }
+
+        pageNum += 1;
+        loadPaperPage();
     }
 
     async function deletePaper(id) {
@@ -160,53 +331,15 @@
             }
 
             showMessage(result.message || "删除成功");
-            loadPaperList();
+
+            if (paperList.length === 1 && pageNum > 1) {
+                pageNum -= 1;
+            }
+
+            loadPaperPage();
         } catch (error) {
             console.error("删除试卷失败：", error);
             showMessage("无法连接后端，请检查服务是否启动");
-        }
-    }
-
-    async function loadPaperList() {
-        const tbody = document.getElementById("paperTableBody");
-        tbody.innerHTML = `<tr><td colspan="7">加载中...</td></tr>`;
-        showMessage("");
-
-        try {
-            const result = await get("/paper/list");
-
-            if (result.code !== 200) {
-                tbody.innerHTML = `<tr><td colspan="7">${result.message || "查询失败"}</td></tr>`;
-                return;
-            }
-
-            paperList = result.data || [];
-
-            if (paperList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无试卷</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = paperList.map(paper => `
-                <tr>
-                    <td>${paper.id ?? ""}</td>
-                    <td>${paper.paperName || ""}</td>
-                    <td>${paper.totalScore ?? ""}</td>
-                    <td>${paper.passScore ?? ""}</td>
-                    <td>${paper.createUser ?? ""}</td>
-                    <td>${formatTime(paper.createTime)}</td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
-                            <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">编辑</button>
-                            <button class="btn btn-danger" onclick="deletePaper(${paper.id})">删除</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join("");
-        } catch (error) {
-            console.error("加载试卷列表失败：", error);
-            tbody.innerHTML = `<tr><td colspan="7">无法连接后端</td></tr>`;
         }
     }
 
@@ -220,7 +353,7 @@
         document.getElementById("userText").textContent =
             "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
 
-        loadPaperList();
+        loadPaperPage();
     }
 
     initPage();

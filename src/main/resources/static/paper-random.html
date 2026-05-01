@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机组卷 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .type-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid #ebeef5;
+            border-radius: 10px;
+            background: #fcfcfd;
+        }
+
+        .type-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .summary-box {
+            border: 1px solid #ebeef5;
+            border-radius: 10px;
+            padding: 14px;
+            background: #f8f9fb;
+            line-height: 1.9;
+            margin-top: 14px;
+            font-size: 14px;
+        }
+
+        .summary-main {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tip {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .type-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">随机组卷</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">试卷基本信息</div>
+
+        <div class="form-grid">
+            <div class="form-item">
+                <label>试卷名称</label>
+                <input class="input" id="paperName" placeholder="例如：Java基础随机测试卷">
+            </div>
+
+            <div class="form-item">
+                <label>试卷时长（分钟）</label>
+                <input class="input" id="duration" type="number" min="1" placeholder="例如：90" oninput="calculateSummary()">
+            </div>
+
+            <div class="form-item">
+                <label>及格分数</label>
+                <input class="input" id="passScore" type="number" min="1" placeholder="例如：60">
+            </div>
+
+            <div class="form-item">
+                <label>创建人</label>
+                <input class="input" id="createUserText" disabled>
+            </div>
+        </div>
+
+        <div class="tip">
+            说明：当前随机组卷会按照题型数量从题库中随机抽题。后续可以继续扩展为按课程、难度、知识点随机抽题。
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">题型数量与分值设置</div>
+
+        <div class="type-grid">
+            <div class="type-name">题型</div>
+            <div class="type-name">数量</div>
+            <div class="type-name">每题分值</div>
+            <div class="type-name">小计</div>
+        </div>
+
+        <div class="type-grid">
+            <div class="type-name">单选题</div>
+            <input class="input" id="singleCount" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="singleScore" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="singleTotal" disabled>
+        </div>
+
+        <div class="type-grid">
+            <div class="type-name">多选题</div>
+            <input class="input" id="multipleCount" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="multipleScore" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="multipleTotal" disabled>
+        </div>
+
+        <div class="type-grid">
+            <div class="type-name">判断题</div>
+            <input class="input" id="judgeCount" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="judgeScore" type="number" min="0" value="0" oninput="calculateSummary()">
+            <input class="input" id="judgeTotal" disabled>
+        </div>
+
+        <div id="summaryBox" class="summary-box">
+            <div class="summary-main">当前共 0 道题，总分 0 分</div>
+            <div>单选题：0 道，共 0 分</div>
+            <div>多选题：0 道，共 0 分</div>
+            <div>判断题：0 道，共 0 分</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="actions">
+            <button class="btn btn-primary" onclick="createRandomPaper()">生成试卷</button>
+            <button class="btn btn-gray" onclick="resetForm()">重置</button>
+            <button class="btn btn-gray" onclick="window.location.href='paper-manage.html'">返回试卷管理</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有随机组卷权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function getNumber(id) {
+        const value = document.getElementById(id).value;
+        return Number(value || 0);
+    }
+
+    function calculateSummary() {
+        const singleCount = getNumber("singleCount");
+        const multipleCount = getNumber("multipleCount");
+        const judgeCount = getNumber("judgeCount");
+
+        const singleScore = getNumber("singleScore");
+        const multipleScore = getNumber("multipleScore");
+        const judgeScore = getNumber("judgeScore");
+
+        const singleTotal = singleCount * singleScore;
+        const multipleTotal = multipleCount * multipleScore;
+        const judgeTotal = judgeCount * judgeScore;
+
+        const totalCount = singleCount + multipleCount + judgeCount;
+        const totalScore = singleTotal + multipleTotal + judgeTotal;
+
+        document.getElementById("singleTotal").value = singleTotal;
+        document.getElementById("multipleTotal").value = multipleTotal;
+        document.getElementById("judgeTotal").value = judgeTotal;
+
+        document.getElementById("summaryBox").innerHTML = `
+            <div class="summary-main">当前共 ${totalCount} 道题，总分 ${totalScore} 分</div>
+            <div>单选题：${singleCount} 道，共 ${singleTotal} 分</div>
+            <div>多选题：${multipleCount} 道，共 ${multipleTotal} 分</div>
+            <div>判断题：${judgeCount} 道，共 ${judgeTotal} 分</div>
+        `;
+
+        return {
+            singleCount,
+            multipleCount,
+            judgeCount,
+            singleScore,
+            multipleScore,
+            judgeScore,
+            totalCount,
+            totalScore
+        };
+    }
+
+    function buildRandomPaperData() {
+        const paperName = document.getElementById("paperName").value.trim();
+        const duration = getNumber("duration");
+        const passScore = getNumber("passScore");
+        const summary = calculateSummary();
+
+        if (!paperName) {
+            showMessage("请输入试卷名称");
+            return null;
+        }
+
+        if (duration <= 0) {
+            showMessage("试卷时长必须大于0");
+            return null;
+        }
+
+        if (summary.totalCount <= 0) {
+            showMessage("请至少设置一种题型的题目数量");
+            return null;
+        }
+
+        if (summary.totalScore <= 0) {
+            showMessage("总分必须大于0，请检查题目分值");
+            return null;
+        }
+
+        if (passScore <= 0) {
+            showMessage("及格分数必须大于0");
+            return null;
+        }
+
+        if (passScore > summary.totalScore) {
+            showMessage("及格分数不能大于试卷总分");
+            return null;
+        }
+
+        if (summary.singleCount > 0 && summary.singleScore <= 0) {
+            showMessage("单选题数量大于0时，每题分值必须大于0");
+            return null;
+        }
+
+        if (summary.multipleCount > 0 && summary.multipleScore <= 0) {
+            showMessage("多选题数量大于0时，每题分值必须大于0");
+            return null;
+        }
+
+        if (summary.judgeCount > 0 && summary.judgeScore <= 0) {
+            showMessage("判断题数量大于0时，每题分值必须大于0");
+            return null;
+        }
+
+        return {
+            paperName: paperName,
+            duration: duration,
+            passScore: passScore,
+            createUser: Number(currentUser.id),
+
+            singleCount: summary.singleCount,
+            multipleCount: summary.multipleCount,
+            judgeCount: summary.judgeCount,
+
+            singleScore: summary.singleScore,
+            multipleScore: summary.multipleScore,
+            judgeScore: summary.judgeScore
+        };
+    }
+
+    async function createRandomPaper() {
+        showMessage("");
+
+        const data = buildRandomPaperData();
+
+        if (!data) {
+            return;
+        }
+
+        const ok = confirm("确认按照当前设置随机生成试卷吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await post("/paper/random", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "随机组卷失败");
+                return;
+            }
+
+            alert(result.message || "随机组卷成功");
+            window.location.href = "paper-manage.html";
+        } catch (error) {
+            console.error("随机组卷失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    function resetForm() {
+        document.getElementById("paperName").value = "";
+        document.getElementById("duration").value = "";
+        document.getElementById("passScore").value = "";
+
+        document.getElementById("singleCount").value = 0;
+        document.getElementById("multipleCount").value = 0;
+        document.getElementById("judgeCount").value = 0;
+
+        document.getElementById("singleScore").value = 0;
+        document.getElementById("multipleScore").value = 0;
+        document.getElementById("judgeScore").value = 0;
+
+        showMessage("");
+        calculateSummary();
+    }
+
+    function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        document.getElementById("createUserText").value =
+            currentUser.realName + "（ID：" + currentUser.id + "）";
+
+        calculateSummary();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

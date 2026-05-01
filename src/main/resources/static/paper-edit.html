@@ -30,6 +30,13 @@
             color: #555;
         }
 
+        .paper-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+            gap: 16px;
+            align-items: flex-start;
+        }
+
         .toolbar {
             display: flex;
             gap: 10px;
@@ -37,7 +44,25 @@
             margin-bottom: 16px;
         }
 
-        .question-card {
+        .toolbar .input {
+            width: 170px;
+        }
+
+        .toolbar .keyword-input {
+            width: 220px;
+        }
+
+        .checkbox-inline {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #555;
+            padding: 0 6px;
+        }
+
+        .question-card,
+        .selected-card {
             border: 1px solid #ebeef5;
             border-radius: 10px;
             padding: 14px;
@@ -45,7 +70,13 @@
             background: #fcfcfd;
         }
 
-        .question-top {
+        .question-card.selected {
+            border-color: #409eff;
+            background: #f5faff;
+        }
+
+        .question-top,
+        .selected-top {
             display: flex;
             justify-content: space-between;
             gap: 14px;
@@ -53,12 +84,14 @@
             margin-bottom: 8px;
         }
 
-        .question-title {
+        .question-title,
+        .selected-title {
             font-weight: bold;
             line-height: 1.6;
         }
 
-        .question-meta {
+        .question-meta,
+        .selected-meta {
             font-size: 13px;
             color: #666;
             line-height: 1.8;
@@ -68,6 +101,40 @@
             width: 90px;
         }
 
+        .selected-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #409eff;
+            color: #fff;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .summary-box {
+            border: 1px solid #ebeef5;
+            border-radius: 10px;
+            padding: 12px;
+            background: #f8f9fb;
+            margin-bottom: 14px;
+            line-height: 1.9;
+            font-size: 14px;
+        }
+
+        .summary-main {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
         .actions {
             display: flex;
             gap: 10px;
@@ -75,14 +142,32 @@
             flex-wrap: wrap;
         }
 
+        .empty-text {
+            color: #999;
+            padding: 16px 0;
+            text-align: center;
+        }
+
+        @media (max-width: 1000px) {
+            .paper-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media (max-width: 800px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
 
-            .question-top {
+            .question-top,
+            .selected-top {
                 flex-direction: column;
                 align-items: flex-start;
+            }
+
+            .toolbar .input,
+            .toolbar .keyword-input {
+                width: 100%;
             }
 
             .header {
@@ -117,7 +202,7 @@
 
             <div class="form-item">
                 <label>总分</label>
-                <input class="input" id="totalScore" type="number" placeholder="可点击“计算总分”自动生成">
+                <input class="input" id="totalScore" type="number" placeholder="根据已选题目自动计算">
             </div>
 
             <div class="form-item">
@@ -134,25 +219,51 @@
         <div id="message" class="message"></div>
     </div>
 
-    <div class="card">
-        <div class="title">选择题目</div>
+    <div class="paper-layout">
+        <div class="card">
+            <div class="title">题库筛选</div>
 
-        <div class="toolbar">
-            <input class="input" style="width: 220px;" id="keyword" placeholder="按题目内容筛选">
+            <div class="toolbar">
+                <input class="input keyword-input" id="keyword" placeholder="按题目内容筛选">
+                <input class="input" id="course" placeholder="课程名称">
 
-            <select class="input" style="width: 160px;" id="questionType">
-                <option value="">全部题型</option>
-                <option value="single">单选题</option>
-                <option value="multiple">多选题</option>
-                <option value="judge">判断题</option>
-            </select>
+                <select class="input" id="questionType">
+                    <option value="">全部题型</option>
+                    <option value="single">单选题</option>
+                    <option value="multiple">多选题</option>
+                    <option value="judge">判断题</option>
+                </select>
 
-            <button class="btn btn-primary" onclick="renderQuestionList()">筛选</button>
-            <button class="btn btn-gray" onclick="clearFilter()">清空筛选</button>
-            <button class="btn btn-gray" onclick="calculateTotalScore()">计算总分</button>
+                <select class="input" id="difficulty">
+                    <option value="">全部难度</option>
+                    <option value="1">1 - 简单</option>
+                    <option value="2">2 - 普通</option>
+                    <option value="3">3 - 困难</option>
+                </select>
+
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="onlyUnselected" onchange="renderQuestionList()">
+                    只看未选
+                </label>
+
+                <button class="btn btn-primary" onclick="searchQuestions()">筛选</button>
+                <button class="btn btn-gray" onclick="clearFilter()">清空筛选</button>
+            </div>
+
+            <div id="questionList">题目加载中...</div>
+
+            <div class="pagination">
+                <button class="btn btn-gray" onclick="prevPage()">上一页</button>
+                <span id="pageInfo">第 1 页</span>
+                <button class="btn btn-gray" onclick="nextPage()">下一页</button>
+            </div>
         </div>
 
-        <div id="questionList">题目加载中...</div>
+        <div class="card">
+            <div class="title">已选题目</div>
+            <div id="selectedSummary" class="summary-box"></div>
+            <div id="selectedQuestionList"></div>
+        </div>
     </div>
 
     <div class="card">
@@ -167,8 +278,11 @@
 <script>
     let currentUser = null;
     let paperId = null;
-    let allQuestions = [];
+    let currentQuestionList = [];
     let selectedQuestionMap = {};
+    let pageNum = 1;
+    let pageSize = 10;
+    let total = 0;
 
     function checkLogin() {
         const user = getUser();
@@ -201,15 +315,38 @@
 
     function getQuestionTypeText(type) {
         switch (type) {
-            case "single":
-                return "单选题";
-            case "multiple":
-                return "多选题";
-            case "judge":
-                return "判断题";
-            default:
-                return type || "未知题型";
+            case "single": return "单选题";
+            case "multiple": return "多选题";
+            case "judge": return "判断题";
+            default: return type || "未知题型";
         }
+    }
+
+    function getDifficultyText(difficulty) {
+        switch (Number(difficulty)) {
+            case 1: return "简单";
+            case 2: return "普通";
+            case 3: return "困难";
+            default: return difficulty || "";
+        }
+    }
+
+    function buildQuestionParams() {
+        const keyword = document.getElementById("keyword").value.trim();
+        const course = document.getElementById("course").value.trim();
+        const questionType = document.getElementById("questionType").value;
+        const difficulty = document.getElementById("difficulty").value;
+
+        const params = new URLSearchParams();
+        params.append("pageNum", String(pageNum));
+        params.append("pageSize", String(pageSize));
+
+        if (keyword) params.append("keyword", keyword);
+        if (course) params.append("course", course);
+        if (questionType) params.append("questionType", questionType);
+        if (difficulty) params.append("difficulty", difficulty);
+
+        return params;
     }
 
     async function loadQuestions() {
@@ -217,15 +354,17 @@
         box.innerHTML = "题目加载中...";
 
         try {
-            const result = await get("/question/list");
+            const result = await get("/question/page?" + buildQuestionParams().toString());
 
             if (result.code !== 200) {
                 box.innerHTML = result.message || "题目加载失败";
                 return;
             }
 
-            allQuestions = result.data || [];
+            currentQuestionList = result.data?.records || [];
+            total = Number(result.data?.total || 0);
             renderQuestionList();
+            renderPageInfo();
         } catch (error) {
             console.error("加载题库失败：", error);
             box.innerHTML = "无法连接后端";
@@ -255,40 +394,52 @@
             (paper.questionList || []).forEach(q => {
                 selectedQuestionMap[q.questionId] = {
                     questionId: q.questionId,
-                    score: q.score || 0
+                    questionText: q.questionText || "",
+                    questionType: q.questionType || "",
+                    course: q.course || "",
+                    difficulty: q.difficulty,
+                    score: Number(q.score || 0)
                 };
             });
 
+            calculateTotalScore();
             renderQuestionList();
+            renderSelectedQuestions();
         } catch (error) {
             console.error("加载试卷详情失败：", error);
             showMessage("无法连接后端");
         }
     }
 
-    function clearFilter() {
-        document.getElementById("keyword").value = "";
-        document.getElementById("questionType").value = "";
-        renderQuestionList();
+    function searchQuestions() {
+        pageNum = 1;
+        loadQuestions();
     }
 
-    function getFilteredQuestions() {
-        const keyword = document.getElementById("keyword").value.trim();
-        const type = document.getElementById("questionType").value;
+    function clearFilter() {
+        document.getElementById("keyword").value = "";
+        document.getElementById("course").value = "";
+        document.getElementById("questionType").value = "";
+        document.getElementById("difficulty").value = "";
+        document.getElementById("onlyUnselected").checked = false;
+        pageNum = 1;
+        loadQuestions();
+    }
 
-        return allQuestions.filter(q => {
-            const matchKeyword = !keyword || (q.questionText || "").includes(keyword);
-            const matchType = !type || q.questionType === type;
-            return matchKeyword && matchType;
-        });
+    function getVisibleQuestions() {
+        const onlyUnselected = document.getElementById("onlyUnselected").checked;
+        if (!onlyUnselected) {
+            return currentQuestionList;
+        }
+        return currentQuestionList.filter(q => !selectedQuestionMap[q.id]);
     }
 
     function renderQuestionList() {
         const box = document.getElementById("questionList");
-        const list = getFilteredQuestions();
+        const list = getVisibleQuestions();
 
         if (list.length === 0) {
-            box.innerHTML = '<div class="message">暂无符合条件的题目</div>';
+            box.innerHTML = '<div class="empty-text">暂无符合条件的题目</div>';
             return;
         }
 
@@ -297,13 +448,14 @@
             const score = selected ? selectedQuestionMap[q.id].score : "";
 
             return `
-                <div class="question-card">
+                <div class="question-card ${selected ? "selected" : ""}">
                     <div class="question-top">
                         <label class="question-title">
                             <input type="checkbox"
                                    ${selected ? "checked" : ""}
                                    onchange="toggleQuestion(${q.id}, this.checked)">
                             ${q.questionText || ""}
+                            ${selected ? '<span class="selected-tag">已选</span>' : ''}
                         </label>
 
                         <div>
@@ -317,7 +469,7 @@
                     </div>
 
                     <div class="question-meta">
-                        <div>题目ID：${q.id} ｜ 题型：${getQuestionTypeText(q.questionType)} ｜ 课程：${q.course || ""} ｜ 难度：${q.difficulty ?? ""}</div>
+                        <div>题目ID：${q.id} ｜ 题型：${getQuestionTypeText(q.questionType)} ｜ 课程：${q.course || ""} ｜ 难度：${getDifficultyText(q.difficulty)}</div>
                         <div>A：${q.optionA || ""}</div>
                         <div>B：${q.optionB || ""}</div>
                         <div>C：${q.optionC || ""}</div>
@@ -330,10 +482,16 @@
     }
 
     function toggleQuestion(questionId, checked) {
+        const question = currentQuestionList.find(q => Number(q.id) === Number(questionId));
+
         if (checked) {
             if (!selectedQuestionMap[questionId]) {
                 selectedQuestionMap[questionId] = {
                     questionId: questionId,
+                    questionText: question?.questionText || "",
+                    questionType: question?.questionType || "",
+                    course: question?.course || "",
+                    difficulty: question?.difficulty,
                     score: 0
                 };
             }
@@ -343,28 +501,131 @@
 
         calculateTotalScore();
         renderQuestionList();
+        renderSelectedQuestions();
     }
 
     function changeQuestionScore(questionId, value) {
+        const question = currentQuestionList.find(q => Number(q.id) === Number(questionId));
+
         if (!selectedQuestionMap[questionId]) {
             selectedQuestionMap[questionId] = {
                 questionId: questionId,
+                questionText: question?.questionText || "",
+                questionType: question?.questionType || "",
+                course: question?.course || "",
+                difficulty: question?.difficulty,
                 score: 0
             };
         }
 
         selectedQuestionMap[questionId].score = Number(value || 0);
         calculateTotalScore();
+        renderQuestionList();
+        renderSelectedQuestions();
+    }
+
+    function removeSelectedQuestion(questionId) {
+        delete selectedQuestionMap[questionId];
+        calculateTotalScore();
+        renderQuestionList();
+        renderSelectedQuestions();
+    }
+
+    function changeSelectedScore(questionId, value) {
+        if (selectedQuestionMap[questionId]) {
+            selectedQuestionMap[questionId].score = Number(value || 0);
+        }
+        calculateTotalScore();
+        renderQuestionList();
+        renderSelectedQuestions();
     }
 
     function calculateTotalScore() {
-        let total = 0;
+        let totalScore = 0;
 
         Object.values(selectedQuestionMap).forEach(item => {
-            total += Number(item.score || 0);
+            totalScore += Number(item.score || 0);
         });
 
-        document.getElementById("totalScore").value = total;
+        document.getElementById("totalScore").value = totalScore;
+        renderSelectedSummary(totalScore);
+    }
+
+    function renderSelectedSummary(totalScore) {
+        const list = Object.values(selectedQuestionMap);
+        const summary = {
+            single: { count: 0, score: 0 },
+            multiple: { count: 0, score: 0 },
+            judge: { count: 0, score: 0 }
+        };
+
+        list.forEach(item => {
+            const type = item.questionType;
+            if (summary[type]) {
+                summary[type].count += 1;
+                summary[type].score += Number(item.score || 0);
+            }
+        });
+
+        document.getElementById("selectedSummary").innerHTML = `
+            <div class="summary-main">已选 ${list.length} 道题，当前总分 ${totalScore} 分</div>
+            <div>单选题：${summary.single.count} 道，共 ${summary.single.score} 分</div>
+            <div>多选题：${summary.multiple.count} 道，共 ${summary.multiple.score} 分</div>
+            <div>判断题：${summary.judge.count} 道，共 ${summary.judge.score} 分</div>
+        `;
+    }
+
+    function renderSelectedQuestions() {
+        const box = document.getElementById("selectedQuestionList");
+        const list = Object.values(selectedQuestionMap);
+
+        if (list.length === 0) {
+            box.innerHTML = '<div class="empty-text">暂未选择题目</div>';
+            renderSelectedSummary(0);
+            return;
+        }
+
+        box.innerHTML = list.map(item => `
+            <div class="selected-card">
+                <div class="selected-top">
+                    <div class="selected-title">${item.questionText || "题目ID：" + item.questionId}</div>
+                    <button class="btn btn-danger" onclick="removeSelectedQuestion(${item.questionId})">移除</button>
+                </div>
+                <div class="selected-meta">
+                    <div>题目ID：${item.questionId} ｜ 题型：${getQuestionTypeText(item.questionType)} ｜ 课程：${item.course || ""} ｜ 难度：${getDifficultyText(item.difficulty)}</div>
+                    <div>
+                        分值：
+                        <input class="input score-input"
+                               type="number"
+                               min="0"
+                               value="${item.score}"
+                               onchange="changeSelectedScore(${item.questionId}, this.value)">
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function renderPageInfo() {
+        const totalPage = Math.max(1, Math.ceil(total / pageSize));
+        document.getElementById("pageInfo").textContent = `第 ${pageNum} / ${totalPage} 页，共 ${total} 道题`;
+    }
+
+    function prevPage() {
+        if (pageNum <= 1) {
+            return;
+        }
+        pageNum -= 1;
+        loadQuestions();
+    }
+
+    function nextPage() {
+        const totalPage = Math.max(1, Math.ceil(total / pageSize));
+        if (pageNum >= totalPage) {
+            return;
+        }
+        pageNum += 1;
+        loadQuestions();
     }
 
     function buildPaperData() {
@@ -401,6 +662,11 @@
             return null;
         }
 
+        if (Number(passScore) > Number(totalScore)) {
+            showMessage("及格分数不能大于总分");
+            return null;
+        }
+
         if (!duration || Number(duration) <= 0) {
             showMessage("试卷时长必须大于0");
             return null;
@@ -423,6 +689,7 @@
     }
 
     async function savePaper() {
+        calculateTotalScore();
         const data = buildPaperData();
 
         if (!data) {
@@ -459,6 +726,7 @@
 
         paperId = getIdFromUrl();
 
+        renderSelectedQuestions();
         await loadQuestions();
 
         if (paperId) {

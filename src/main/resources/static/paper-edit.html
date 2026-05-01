@@ -225,7 +225,10 @@
 
             <div class="toolbar">
                 <input class="input keyword-input" id="keyword" placeholder="按题目内容筛选">
-                <input class="input" id="course" placeholder="课程名称">
+
+                <select class="input" id="courseId">
+                    <option value="">全部课程</option>
+                </select>
 
                 <select class="input" id="questionType">
                     <option value="">全部题型</option>
@@ -280,6 +283,7 @@
     let paperId = null;
     let currentQuestionList = [];
     let selectedQuestionMap = {};
+    let courseList = [];
     let pageNum = 1;
     let pageSize = 10;
     let total = 0;
@@ -331,9 +335,53 @@
         }
     }
 
+    function getCourseNameById(courseId) {
+        const course = courseList.find(item => Number(item.id) === Number(courseId));
+        return course ? course.courseName : "";
+    }
+
+    async function loadCourseList() {
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "课程列表加载失败");
+                return;
+            }
+
+            courseList = result.data || [];
+            renderCourseSelect();
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            showMessage("无法加载课程列表，请检查后端服务");
+        }
+    }
+
+    function renderCourseSelect() {
+        const select = document.getElementById("courseId");
+        const currentValue = select.value;
+
+        select.innerHTML = '<option value="">全部课程</option>';
+
+        courseList.forEach(course => {
+            if (course.status && course.status !== "ENABLED") {
+                return;
+            }
+
+            const option = document.createElement("option");
+            option.value = course.id;
+            option.textContent = course.courseName || "";
+            select.appendChild(option);
+        });
+
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
     function buildQuestionParams() {
         const keyword = document.getElementById("keyword").value.trim();
-        const course = document.getElementById("course").value.trim();
+        const courseId = document.getElementById("courseId").value;
         const questionType = document.getElementById("questionType").value;
         const difficulty = document.getElementById("difficulty").value;
 
@@ -342,7 +390,7 @@
         params.append("pageSize", String(pageSize));
 
         if (keyword) params.append("keyword", keyword);
-        if (course) params.append("course", course);
+        if (courseId) params.append("courseId", courseId);
         if (questionType) params.append("questionType", questionType);
         if (difficulty) params.append("difficulty", difficulty);
 
@@ -396,7 +444,8 @@
                     questionId: q.questionId,
                     questionText: q.questionText || "",
                     questionType: q.questionType || "",
-                    course: q.course || "",
+                    courseId: q.courseId,
+                    course: q.course || getCourseNameById(q.courseId) || "",
                     difficulty: q.difficulty,
                     score: Number(q.score || 0)
                 };
@@ -418,7 +467,7 @@
 
     function clearFilter() {
         document.getElementById("keyword").value = "";
-        document.getElementById("course").value = "";
+        document.getElementById("courseId").value = "";
         document.getElementById("questionType").value = "";
         document.getElementById("difficulty").value = "";
         document.getElementById("onlyUnselected").checked = false;
@@ -446,6 +495,7 @@
         box.innerHTML = list.map(q => {
             const selected = selectedQuestionMap[q.id] !== undefined;
             const score = selected ? selectedQuestionMap[q.id].score : "";
+            const courseName = q.course || getCourseNameById(q.courseId) || "";
 
             return `
                 <div class="question-card ${selected ? "selected" : ""}">
@@ -469,7 +519,7 @@
                     </div>
 
                     <div class="question-meta">
-                        <div>题目ID：${q.id} ｜ 题型：${getQuestionTypeText(q.questionType)} ｜ 课程：${q.course || ""} ｜ 难度：${getDifficultyText(q.difficulty)}</div>
+                        <div>题目ID：${q.id} ｜ 题型：${getQuestionTypeText(q.questionType)} ｜ 课程：${courseName} ｜ 难度：${getDifficultyText(q.difficulty)}</div>
                         <div>A：${q.optionA || ""}</div>
                         <div>B：${q.optionB || ""}</div>
                         <div>C：${q.optionC || ""}</div>
@@ -490,7 +540,8 @@
                     questionId: questionId,
                     questionText: question?.questionText || "",
                     questionType: question?.questionType || "",
-                    course: question?.course || "",
+                    courseId: question?.courseId,
+                    course: question?.course || getCourseNameById(question?.courseId) || "",
                     difficulty: question?.difficulty,
                     score: 0
                 };
@@ -512,7 +563,8 @@
                 questionId: questionId,
                 questionText: question?.questionText || "",
                 questionType: question?.questionType || "",
-                course: question?.course || "",
+                courseId: question?.courseId,
+                course: question?.course || getCourseNameById(question?.courseId) || "",
                 difficulty: question?.difficulty,
                 score: 0
             };
@@ -592,7 +644,7 @@
                     <button class="btn btn-danger" onclick="removeSelectedQuestion(${item.questionId})">移除</button>
                 </div>
                 <div class="selected-meta">
-                    <div>题目ID：${item.questionId} ｜ 题型：${getQuestionTypeText(item.questionType)} ｜ 课程：${item.course || ""} ｜ 难度：${getDifficultyText(item.difficulty)}</div>
+                    <div>题目ID：${item.questionId} ｜ 题型：${getQuestionTypeText(item.questionType)} ｜ 课程：${item.course || getCourseNameById(item.courseId) || ""} ｜ 难度：${getDifficultyText(item.difficulty)}</div>
                     <div>
                         分值：
                         <input class="input score-input"
@@ -727,6 +779,7 @@
         paperId = getIdFromUrl();
 
         renderSelectedQuestions();
+        await loadCourseList();
         await loadQuestions();
 
         if (paperId) {

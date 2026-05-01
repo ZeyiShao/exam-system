@@ -52,12 +52,13 @@ public class QuestionController {
     public Result<IPage<Question>> page(
             @RequestParam Integer pageNum,
             @RequestParam Integer pageSize,
-            @RequestParam(required = false) String course,
+            @RequestParam(required = false) Integer courseId,
             @RequestParam(required = false) String questionType,
             @RequestParam(required = false) Integer difficulty,
             @RequestParam(required = false) String keyword) {
+
         IPage<Question> page = questionService.page(
-                pageNum, pageSize, course, questionType,difficulty, keyword);
+                pageNum, pageSize, courseId, questionType, difficulty, keyword);
 
         return Result.success("查询成功", page);
     }

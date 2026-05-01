@@ -178,21 +178,21 @@ public class PaperServiceImpl implements PaperService {
         List<Question> singleList = getRandomQuestions(
                 "single",
                 randomAddVO.getSingleCount(),
-                randomAddVO.getCourse(),
+                randomAddVO.getCourseId(),
                 randomAddVO.getDifficulty()
         );
 
         List<Question> multipleList = getRandomQuestions(
                 "multiple",
                 randomAddVO.getMultipleCount(),
-                randomAddVO.getCourse(),
+                randomAddVO.getCourseId(),
                 randomAddVO.getDifficulty()
         );
 
         List<Question> judgeList = getRandomQuestions(
                 "judge",
                 randomAddVO.getJudgeCount(),
-                randomAddVO.getCourse(),
+                randomAddVO.getCourseId(),
                 randomAddVO.getDifficulty()
         );
 
@@ -361,7 +361,7 @@ public class PaperServiceImpl implements PaperService {
 
     private List<Question> getRandomQuestions(String questionType,
                                               Integer count,
-                                              String course,
+                                              Integer courseId,
                                               Integer difficulty) {
         if (count == null || count <= 0) {
             return Collections.emptyList();
@@ -370,8 +370,8 @@ public class PaperServiceImpl implements PaperService {
         LambdaQueryWrapper<Question> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Question::getQuestionType, questionType);
 
-        if (StringUtils.hasText(course)) {
-            wrapper.like(Question::getCourse, course);
+        if (courseId != null) {
+            wrapper.eq(Question::getCourseId, courseId);
         }
 
         if (difficulty != null) {
@@ -384,7 +384,7 @@ public class PaperServiceImpl implements PaperService {
             throw new BusinessException(buildQuestionNotEnoughMessage(
                     questionType,
                     count,
-                    course,
+                    courseId,
                     difficulty,
                     questionList == null ? 0 : questionList.size()
             ));
@@ -396,7 +396,7 @@ public class PaperServiceImpl implements PaperService {
 
     private String buildQuestionNotEnoughMessage(String questionType,
                                                  Integer needCount,
-                                                 String course,
+                                                 Integer courseId,
                                                  Integer difficulty,
                                                  Integer actualCount) {
         StringBuilder message = new StringBuilder();
@@ -409,8 +409,8 @@ public class PaperServiceImpl implements PaperService {
                 .append(actualCount)
                 .append("道");
 
-        if (StringUtils.hasText(course)) {
-            message.append("，课程条件：").append(course);
+        if (courseId != null) {
+            message.append("，课程ID：").append(courseId);
         }
 
         if (difficulty != null) {

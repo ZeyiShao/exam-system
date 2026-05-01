@@ -11,14 +11,12 @@ public class PaperRandomAddVO {
     private Integer createUser;
 
     /**
-     * 课程筛选条件，可为空。
-     * 为空时表示不按课程限制随机抽题。
+     * 课程ID（用于筛选题目）
      */
-    private String course;
+    private Integer courseId;
 
     /**
-     * 难度筛选条件，可为空。
-     * 为空时表示不按难度限制随机抽题。
+     * 难度筛选（1简单 2普通 3困难）
      */
     private Integer difficulty;
 

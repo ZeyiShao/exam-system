@@ -143,7 +143,9 @@
             <div class="form-grid">
                 <div class="form-item">
                     <label>课程筛选</label>
-                    <input class="input" id="course" placeholder="例如：Java基础，可不填">
+                    <select class="input" id="courseId">
+                        <option value="">全部课程</option>
+                    </select>
                 </div>
 
                 <div class="form-item">
@@ -158,7 +160,7 @@
             </div>
 
             <div class="tip">
-                说明：课程和难度可以不填。不填写时，系统只按题型和数量随机抽题；填写后，系统会在符合课程和难度条件的题目中随机抽取。
+                说明：课程和难度可以不选。不选择课程时，系统只按题型和数量随机抽题；选择课程后，系统会在该课程题库中随机抽取。
             </div>
         </div>
 
@@ -216,6 +218,7 @@
 
 <script>
     let currentUser = null;
+    let courseList = [];
 
     function checkLogin() {
         const user = getUser();
@@ -235,6 +238,45 @@
 
     function showMessage(msg) {
         document.getElementById("message").textContent = msg || "";
+    }
+
+    async function loadCourseList() {
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "课程列表加载失败");
+                return;
+            }
+
+            courseList = result.data || [];
+            renderCourseSelect();
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            showMessage("无法加载课程列表，请检查后端服务");
+        }
+    }
+
+    function renderCourseSelect() {
+        const select = document.getElementById("courseId");
+        const currentValue = select.value;
+
+        select.innerHTML = '<option value="">全部课程</option>';
+
+        courseList.forEach(course => {
+            if (course.status && course.status !== "ENABLED") {
+                return;
+            }
+
+            const option = document.createElement("option");
+            option.value = course.id;
+            option.textContent = course.courseName || "";
+            select.appendChild(option);
+        });
+
+        if (currentValue) {
+            select.value = currentValue;
+        }
     }
 
     function getNumber(id) {
@@ -285,7 +327,7 @@
         const paperName = document.getElementById("paperName").value.trim();
         const duration = getNumber("duration");
         const passScore = getNumber("passScore");
-        const course = document.getElementById("course").value.trim();
+        const courseId = document.getElementById("courseId").value;
         const difficulty = document.getElementById("difficulty").value;
         const summary = calculateSummary();
 
@@ -349,8 +391,8 @@
             judgeScore: summary.judgeScore
         };
 
-        if (course) {
-            data.course = course;
+        if (courseId) {
+            data.courseId = Number(courseId);
         }
 
         if (difficulty) {
@@ -395,7 +437,7 @@
         document.getElementById("paperName").value = "";
         document.getElementById("duration").value = "";
         document.getElementById("passScore").value = "";
-        document.getElementById("course").value = "";
+        document.getElementById("courseId").value = "";
         document.getElementById("difficulty").value = "";
 
         document.getElementById("singleCount").value = 0;
@@ -410,7 +452,7 @@
         calculateSummary();
     }
 
-    function initPage() {
+    async function initPage() {
         currentUser = checkLogin();
 
         if (!currentUser) {
@@ -423,6 +465,7 @@
         document.getElementById("createUserText").value =
             currentUser.realName + "（ID：" + currentUser.id + "）";
 
+        await loadCourseList();
         calculateSummary();
     }
 

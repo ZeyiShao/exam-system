@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.examsystem.common.BusinessException;
+import com.example.examsystem.entity.Course;
 import com.example.examsystem.entity.Question;
+import com.example.examsystem.mapper.CourseMapper;
 import com.example.examsystem.mapper.QuestionMapper;
 import com.example.examsystem.service.QuestionService;
 import org.springframework.stereotype.Service;
@@ -18,9 +20,12 @@ import java.util.List;
 public class QuestionServiceImpl implements QuestionService {
 
     private final QuestionMapper questionMapper;
+    private final CourseMapper courseMapper;
 
-    public QuestionServiceImpl(QuestionMapper questionMapper) {
+    public QuestionServiceImpl(QuestionMapper questionMapper,
+                               CourseMapper courseMapper) {
         this.questionMapper = questionMapper;
+        this.courseMapper = courseMapper;
     }
 
     @Override
@@ -75,7 +80,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public IPage<Question> page(Integer pageNum,
                                 Integer pageSize,
-                                String course,
+                                Integer courseId,
                                 String questionType,
                                 Integer difficulty,
                                 String keyword) {
@@ -83,9 +88,9 @@ public class QuestionServiceImpl implements QuestionService {
 
         LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
 
-        // 课程筛选
-        if (StringUtils.hasText(course)) {
-            queryWrapper.like(Question::getCourse, course);
+        // 课程筛选：方案B使用 courseId，不再使用 course 字符串筛选
+        if (courseId != null) {
+            queryWrapper.eq(Question::getCourseId, courseId);
         }
 
         // 题型筛选
@@ -136,9 +141,21 @@ public class QuestionServiceImpl implements QuestionService {
             throw new BusinessException("题型只能是 single、multiple、judge");
         }
 
-        if (!StringUtils.hasText(question.getCourse())) {
+        if (question.getCourseId() == null) {
             throw new BusinessException("课程不能为空");
         }
+
+        Course course = courseMapper.selectById(question.getCourseId());
+        if (course == null) {
+            throw new BusinessException("课程不存在");
+        }
+
+        if (!"ENABLED".equals(course.getStatus())) {
+            throw new BusinessException("该课程已禁用，不能添加或修改题目");
+        }
+
+        // 根据 courseId 自动回填课程名称，避免前端手输 course 导致不一致
+        question.setCourse(course.getCourseName());
 
         if (question.getDifficulty() == null) {
             throw new BusinessException("难度不能为空");
@@ -170,11 +187,14 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     private void normalizeQuestion(Question question) {
-        String questionType = question.getQuestionType();
+        String questionType = question.getQuestionType().trim();
 
         question.setQuestionText(question.getQuestionText().trim());
-        question.setQuestionType(questionType.trim());
-        question.setCourse(question.getCourse().trim());
+        question.setQuestionType(questionType);
+
+        if (question.getCourse() != null) {
+            question.setCourse(question.getCourse().trim());
+        }
 
         if ("single".equals(questionType)) {
             question.setCorrectAnswer(question.getCorrectAnswer().trim().toUpperCase());

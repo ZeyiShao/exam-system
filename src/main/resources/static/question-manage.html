@@ -112,19 +112,25 @@
 
         <div class="toolbar">
             <input class="input" id="searchKeyword" placeholder="题目关键字">
-            <input class="input" id="searchCourse" placeholder="课程名称">
+
+            <select class="input" id="searchCourseId">
+                <option value="">全部课程</option>
+            </select>
+
             <select class="input" id="searchType">
                 <option value="">全部题型</option>
                 <option value="single">单选题</option>
                 <option value="multiple">多选题</option>
                 <option value="judge">判断题</option>
             </select>
+
             <select class="input" id="searchDifficulty">
                 <option value="">全部难度</option>
                 <option value="1">1 - 简单</option>
                 <option value="2">2 - 普通</option>
                 <option value="3">3 - 困难</option>
             </select>
+
             <button class="btn btn-primary" onclick="loadQuestionList()">筛选</button>
             <button class="btn btn-gray" onclick="clearSearch()">清空</button>
         </div>
@@ -154,7 +160,9 @@
 
             <div class="form-item">
                 <label>课程</label>
-                <input class="input" id="course" placeholder="例如：Java程序设计">
+                <select class="input" id="courseId">
+                    <option value="">请选择课程</option>
+                </select>
             </div>
 
             <div class="form-item">
@@ -225,6 +233,7 @@
 <script>
     let currentUser = null;
     let questionList = [];
+    let courseList = [];
 
     function checkLogin() {
         const user = getUser();
@@ -246,7 +255,6 @@
         document.getElementById("message").textContent = msg || "";
     }
 
-
     function getQuestionTypeText(type) {
         switch (type) {
             case "single":
@@ -257,6 +265,52 @@
                 return "判断题";
             default:
                 return type || "未知";
+        }
+    }
+
+    function getCourseNameById(courseId) {
+        const course = courseList.find(item => Number(item.id) === Number(courseId));
+        return course ? course.courseName : "";
+    }
+
+    async function loadCourseList() {
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "课程列表加载失败");
+                return;
+            }
+
+            courseList = result.data || [];
+
+            renderCourseSelect("searchCourseId", "全部课程");
+            renderCourseSelect("courseId", "请选择课程");
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            showMessage("无法加载课程列表，请检查后端服务");
+        }
+    }
+
+    function renderCourseSelect(selectId, defaultText) {
+        const select = document.getElementById(selectId);
+        const currentValue = select.value;
+
+        select.innerHTML = `<option value="">${defaultText}</option>`;
+
+        courseList.forEach(course => {
+            if (course.status && course.status !== "ENABLED") {
+                return;
+            }
+
+            const option = document.createElement("option");
+            option.value = course.id;
+            option.textContent = course.courseName || "";
+            select.appendChild(option);
+        });
+
+        if (currentValue) {
+            select.value = currentValue;
         }
     }
 
@@ -297,7 +351,7 @@
         document.getElementById("questionId").value = "";
         document.getElementById("questionText").value = "";
         document.getElementById("questionType").value = "single";
-        document.getElementById("course").value = "";
+        document.getElementById("courseId").value = "";
         document.getElementById("difficulty").value = "1";
         document.getElementById("correctAnswer").value = "";
         document.getElementById("optionA").value = "";
@@ -310,7 +364,7 @@
 
     function clearSearch() {
         document.getElementById("searchKeyword").value = "";
-        document.getElementById("searchCourse").value = "";
+        document.getElementById("searchCourseId").value = "";
         document.getElementById("searchType").value = "";
         document.getElementById("searchDifficulty").value = "";
         loadQuestionList();
@@ -328,7 +382,7 @@
         document.getElementById("questionId").value = q.id;
         document.getElementById("questionText").value = q.questionText || "";
         document.getElementById("questionType").value = q.questionType || "single";
-        document.getElementById("course").value = q.course || "";
+        document.getElementById("courseId").value = q.courseId ? String(q.courseId) : "";
         document.getElementById("difficulty").value = q.difficulty || 1;
         document.getElementById("correctAnswer").value = q.correctAnswer || "";
         document.getElementById("optionA").value = q.optionA || "";
@@ -352,13 +406,13 @@
             return false;
         }
 
-        if (!data.correctAnswer) {
-            showMessage("请输入正确答案");
+        if (!data.courseId) {
+            showMessage("请选择课程");
             return false;
         }
 
-        if (!data.course) {
-            showMessage("请输入课程");
+        if (!data.correctAnswer) {
+            showMessage("请输入正确答案");
             return false;
         }
 
@@ -415,6 +469,7 @@
 
     function buildQuestionData() {
         const id = document.getElementById("questionId").value;
+        const courseIdValue = document.getElementById("courseId").value;
 
         const data = {
             questionText: document.getElementById("questionText").value.trim(),
@@ -425,7 +480,7 @@
             correctAnswer: document.getElementById("correctAnswer").value.trim(),
             questionType: document.getElementById("questionType").value,
             difficulty: Number(document.getElementById("difficulty").value),
-            course: document.getElementById("course").value.trim(),
+            courseId: courseIdValue ? Number(courseIdValue) : null,
             createUser: Number(currentUser.id)
         };
 
@@ -495,7 +550,7 @@
         showMessage("");
 
         const keyword = document.getElementById("searchKeyword").value.trim();
-        const course = document.getElementById("searchCourse").value.trim();
+        const courseId = document.getElementById("searchCourseId").value;
         const questionType = document.getElementById("searchType").value;
         const difficulty = document.getElementById("searchDifficulty").value;
 
@@ -503,7 +558,7 @@
         params.append("pageNum", "1");
         params.append("pageSize", "1000");
 
-        if (course) params.append("course", course);
+        if (courseId) params.append("courseId", courseId);
         if (questionType) params.append("questionType", questionType);
         if (difficulty) params.append("difficulty", difficulty);
         if (keyword) params.append("keyword", keyword);
@@ -528,7 +583,7 @@
                     <td>${q.id ?? ""}</td>
                     <td style="text-align:left;">${q.questionText || ""}</td>
                     <td>${getQuestionTypeText(q.questionType)}</td>
-                    <td>${q.course || ""}</td>
+                    <td>${q.course || getCourseNameById(q.courseId) || ""}</td>
                     <td>${q.difficulty ?? ""}</td>
                     <td>${q.correctAnswer || ""}</td>
                     <td>
@@ -543,7 +598,7 @@
         }
     }
 
-    function initPage() {
+    async function initPage() {
         currentUser = checkLogin();
 
         if (!currentUser) {
@@ -554,6 +609,7 @@
             "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
 
         handleTypeChange();
+        await loadCourseList();
         loadQuestionList();
     }
 

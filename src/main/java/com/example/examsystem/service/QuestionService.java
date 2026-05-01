@@ -19,9 +19,8 @@ public interface QuestionService {
 
     IPage<Question> page(Integer pageNum,
                          Integer pageSize,
-                         String course,
+                         Integer courseId,
                          String questionType,
                          Integer difficulty,
-                         String keyword
-    );
+                         String keyword);
 }

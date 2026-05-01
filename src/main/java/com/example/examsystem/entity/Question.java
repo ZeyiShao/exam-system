@@ -21,10 +21,24 @@ public class Question {
 
     private String correctAnswer;
 
-    private String questionType; // single / multiple / judge
+    /**
+     * 题型：single / multiple / judge
+     */
+    private String questionType;
 
+    /**
+     * 难度：1简单 / 2普通 / 3困难
+     */
     private Integer difficulty;
 
+    /**
+     * 课程ID，正式用于课程关联和筛选
+     */
+    private Integer courseId;
+
+    /**
+     * 课程名称，主要用于页面展示和兼容旧数据
+     */
     private String course;
 
     private Integer createUser;

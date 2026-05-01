@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的考试记录 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th, .table td {
+            border: 1px solid #ebeef5;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .pass-tag {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 16px;
+            color: white;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .pass-yes { background: #67c23a; }
+        .pass-no { background: #f56c6c; }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 24px 0;
+        }
+
+        @media (max-width: 800px) {
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">我的考试记录</div>
+    <div class="user-box">
+        <span id="studentText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="toolbar">
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+            <button class="btn btn-gray" onclick="loadRecordList()">刷新列表</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">考试记录</div>
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>考试名称</th>
+                <th>班级</th>
+                <th>课程</th>
+                <th>开始时间</th>
+                <th>结束时间</th>
+                <th>成绩</th>
+                <th>是否通过</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody id="recordTableBody">
+            <tr>
+                <td colspan="9">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let recordList = [];
+    let classList = [];
+    let courseList = [];
+
+    function checkStudentLogin() {
+        const user = getUser();
+        if (!user || user.role !== "STUDENT") {
+            alert("请使用学生账号登录");
+            window.location.href = "login.html";
+            return null;
+        }
+        return user;
+    }
+
+    function goHome() {
+        if (currentUser && currentUser.role === "ADMIN") {
+            window.location.href = "admin-home.html";
+        } else if (currentUser && currentUser.role === "TEACHER") {
+            window.location.href = "teacher-home.html";
+        } else {
+            window.location.href = "student-home.html";
+        }
+    }
+
+    function formatTime(timeStr) {
+        return timeStr ? timeStr.replace("T", " ") : "";
+    }
+
+    function getClassName(id) {
+        const cls = classList.find(c => c.id === id);
+        return cls ? cls.className : "班级ID：" + id;
+    }
+
+    function getCourseName(id) {
+        const course = courseList.find(c => c.id === id);
+        return course ? course.courseName : "课程ID：" + id;
+    }
+
+    async function loadBaseData() {
+        try {
+            const [classRes, courseRes] = await Promise.all([
+                get("/class/list"),
+                get("/course/list")
+            ]);
+
+            if (classRes.code === 200) classList = classRes.data || [];
+            if (courseRes.code === 200) courseList = courseRes.data || [];
+        } catch (error) {
+            console.error("加载基础数据失败", error);
+        }
+    }
+
+    async function loadRecordList() {
+        const tbody = document.getElementById("recordTableBody");
+        tbody.innerHTML = `<tr><td colspan="9">加载中...</td></tr>`;
+        try {
+            const result = await get("/examRecord/myRecords/" + currentUser.id);
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="9">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            recordList = result.data || [];
+            if (recordList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="empty">暂无考试记录</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = recordList.map(r => `
+                <tr>
+                    <td>${r.recordId ?? ""}</td>
+                    <td>${r.examName || r.examId}</td>
+                    <td>${getClassName(r.classId)}</td>
+                    <td>${getCourseName(r.courseId)}</td>
+                    <td>${formatTime(r.startTime)}</td>
+                    <td>${formatTime(r.endTime)}</td>
+                    <td>${r.score ?? ""}</td>
+                    <td>
+                        <span class="pass-tag ${r.isPass ? 'pass-yes' : 'pass-no'}">
+                            ${r.isPass ? '通过' : '未通过'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick="viewResult(${r.recordId})">查看成绩</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error(error);
+            tbody.innerHTML = `<tr><td colspan="9">无法加载记录</td></tr>`;
+        }
+    }
+
+    function viewResult(recordId) {
+        window.location.href = "student-result.html?recordId=" + recordId;
+    }
+
+    async function initPage() {
+        currentUser = checkStudentLogin();
+        if (!currentUser) return;
+
+        document.getElementById("studentText").textContent =
+            "当前学生：" + currentUser.realName + "（ID：" + currentUser.id + "）";
+
+        await loadBaseData();
+        await loadRecordList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

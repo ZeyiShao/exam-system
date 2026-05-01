@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>首页 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        body { background: #f5f5f5; margin: 0; font-family: Arial, sans-serif; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #409eff; color: white; }
+        .header .title { font-size: 24px; font-weight: bold; }
+        .header .user-box { font-size: 14px; }
+        .container { padding: 20px; max-width: 1200px; margin: auto; }
+        .exam-card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 18px; border: 1px solid #e6e6e6; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .exam-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .exam-detail { font-size: 14px; color: #555; line-height: 1.8; }
+        .status-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; color: white; font-size: 12px; margin-top: 6px; }
+        .status-not { background: #409eff; }       /* 未开始 */
+        .status-doing { background: #e6a23c; }    /* 进行中 */
+        .status-finished { background: #67c23a; } /* 已结束 */
+        @media (max-width: 900px) {
+            .container { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div class="title">在线考试系统</div>
+    <div class="user-box" id="userBox">未登录</div>
+</div>
+
+<div class="container" id="examContainer">
+    <!-- 考试卡片列表 -->
+</div>
+
+<script>
+    let currentUser = null;
+    let examList = [];
+    let classList = [];
+    let courseList = [];
+
+    function checkLoginStatus() {
+        const user = getUser();
+        currentUser = user;
+        const box = document.getElementById("userBox");
+
+        if (user) {
+            box.textContent = `当前用户：${user.realName}（${user.role}）`;
+        } else {
+            box.textContent = "未登录";
+        }
+    }
+
+    function formatTime(timeStr) {
+        return timeStr ? timeStr.replace("T", " ") : "";
+    }
+
+    function getClassName(id) {
+        const cls = classList.find(c => Number(c.id) === Number(id));
+        return cls ? cls.className : "班级ID：" + id;
+    }
+
+    function getCourseName(id) {
+        const course = courseList.find(c => Number(c.id) === Number(id));
+        return course ? course.courseName : "课程ID：" + id;
+    }
+
+    function getExamStatus(exam) {
+        const now = new Date();
+        const start = new Date(exam.startTime.replace("T"," "));
+        const end = new Date(exam.endTime.replace("T"," "));
+        if (now < start) return "NOT_STARTED";
+        if (now > end) return "FINISHED";
+        return "ONGOING";
+    }
+
+    function getStatusText(status) {
+        switch(status) {
+            case "NOT_STARTED": return "未开始";
+            case "ONGOING": return "进行中";
+            case "FINISHED": return "已结束";
+            default: return status;
+        }
+    }
+
+    function getStatusClass(status) {
+        switch(status) {
+            case "NOT_STARTED": return "status-not";
+            case "ONGOING": return "status-doing";
+            case "FINISHED": return "status-finished";
+            default: return "";
+        }
+    }
+
+    function renderExamList() {
+        const container = document.getElementById("examContainer");
+        if (!examList || examList.length === 0) {
+            container.innerHTML = `<div class="exam-card">暂无考试信息</div>`;
+            return;
+        }
+
+        container.innerHTML = examList.map(exam => {
+            const status = getExamStatus(exam);
+            return `
+                <div class="exam-card">
+                    <div class="exam-title">${exam.examName}</div>
+                    <div class="exam-detail">
+                        <div>班级：${getClassName(exam.classId)}</div>
+                        <div>课程：${getCourseName(exam.courseId)}</div>
+                        <div>开始时间：${formatTime(exam.startTime)}</div>
+                        <div>结束时间：${formatTime(exam.endTime)}</div>
+                        <div>考试时长：${exam.duration ?? ""} 分钟</div>
+                        <div>及格分：${exam.passScore ?? ""}</div>
+                        <div class="status-tag ${getStatusClass(status)}">${getStatusText(status)}</div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    async function loadBaseData() {
+        try {
+            const [classRes, courseRes, examRes] = await Promise.all([
+                get("/class/list"),
+                get("/course/list"),
+                get("/exam/list")
+            ]);
+
+            if (classRes.code === 200) classList = classRes.data || [];
+            if (courseRes.code === 200) courseList = courseRes.data || [];
+            if (examRes.code === 200) examList = examRes.data || [];
+
+            renderExamList();
+        } catch (error) {
+            console.error("加载考试信息失败：", error);
+            const container = document.getElementById("examContainer");
+            container.innerHTML = `<div class="exam-card">无法加载考试信息</div>`;
+        }
+    }
+
+    function initPage() {
+        checkLoginStatus();
+        loadBaseData();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

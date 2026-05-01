@@ -70,7 +70,8 @@
         <div class="title">试卷操作</div>
 
         <div class="top-actions">
-            <button class="btn btn-primary" onclick="goAddPaper()">新增试卷</button>
+            <!-- 新增试卷跳转到独立页面 -->
+            <button class="btn btn-primary" onclick="window.location.href='paper-edit.html'">新增试卷</button>
             <button class="btn btn-gray" onclick="loadPaperList()">刷新列表</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
         </div>
@@ -133,14 +134,12 @@
         return timeStr.replace("T", " ");
     }
 
-    function goAddPaper() {
-        window.location.href = "paper-edit.html";
-    }
-
+    // 编辑试卷跳转到独立页面
     function goEditPaper(id) {
         window.location.href = "paper-edit.html?id=" + id;
     }
 
+    // 查看试卷详情
     function goDetailPaper(id) {
         window.location.href = "paper-detail.html?id=" + id;
     }

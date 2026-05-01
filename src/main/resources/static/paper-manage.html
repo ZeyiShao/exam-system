@@ -164,6 +164,7 @@
 <script>
     let currentUser = null;
     let paperList = [];
+    let userNameMap = {};
     let pageNum = 1;
     let pageSize = 10;
     let total = 0;
@@ -193,6 +194,43 @@
             return "";
         }
         return timeStr.replace("T", " ");
+    }
+
+    async function getUserName(userId) {
+        if (!userId) {
+            return "";
+        }
+
+        if (userNameMap[userId]) {
+            return userNameMap[userId];
+        }
+
+        try {
+            const result = await get("/user/user/" + userId);
+
+            if (result.code === 200 && result.data) {
+                const name = result.data.realName || result.data.username || ("ID：" + userId);
+                userNameMap[userId] = name;
+                return name;
+            }
+        } catch (error) {
+            console.error("加载用户信息失败：", error);
+        }
+
+        userNameMap[userId] = "ID：" + userId;
+        return userNameMap[userId];
+    }
+
+    async function loadPaperUserNames() {
+        const userIds = [...new Set(
+            paperList
+                .map(item => item.createUser)
+                .filter(id => id !== null && id !== undefined)
+        )];
+
+        for (const userId of userIds) {
+            await getUserName(userId);
+        }
     }
 
     function goRandomPaper() {
@@ -237,6 +275,8 @@
             paperList = result.data?.records || [];
             total = Number(result.data?.total || 0);
 
+            await loadPaperUserNames();
+
             renderPaperTable();
             renderPageInfo();
         } catch (error) {
@@ -259,7 +299,7 @@
                 <td>${paper.paperName || ""}</td>
                 <td>${paper.totalScore ?? ""}</td>
                 <td>${paper.passScore ?? ""}</td>
-                <td>${paper.createUser ?? ""}</td>
+                <td>${userNameMap[paper.createUser] ? userNameMap[paper.createUser] + "（ID：" + paper.createUser + "）" : "ID：" + (paper.createUser ?? "")}</td>
                 <td>${formatTime(paper.createTime)}</td>
                 <td>
                     <div class="action-buttons">

@@ -155,6 +155,7 @@
     let currentUser = null;
     let paperId = null;
     let paperDetail = null;
+    let createUserName = "";
 
     function checkLogin() {
         const user = getUser();
@@ -232,6 +233,8 @@
 
             paperDetail = result.data;
 
+            await loadCreateUserName(paperDetail.createUser);
+
             renderPaperInfo();
             renderQuestionList();
         } catch (error) {
@@ -239,6 +242,24 @@
             infoEl.innerHTML = "";
             questionEl.innerHTML = "";
             showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function loadCreateUserName(userId) {
+        createUserName = "";
+
+        if (!userId) {
+            return;
+        }
+
+        try {
+            const result = await get("/user/user/" + userId);
+
+            if (result.code === 200 && result.data) {
+                createUserName = result.data.realName || result.data.username || "";
+            }
+        } catch (error) {
+            console.error("加载创建人信息失败：", error);
         }
     }
 
@@ -267,7 +288,7 @@
 
                 <div class="info-item">
                     <div class="info-label">创建人</div>
-                    <div class="info-value">${paperDetail.createUser ?? ""}</div>
+                    <div class="info-value">${createUserName ? createUserName + "（ID：" + paperDetail.createUser + "）" : "ID：" + (paperDetail.createUser ?? "")}</div>
                 </div>
 
                 <div class="info-item">

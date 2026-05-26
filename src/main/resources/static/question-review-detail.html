@@ -114,6 +114,9 @@
             <div class="label">提交人ID</div>
             <div class="value" id="createUser"></div>
 
+            <div class="label">提交人</div>
+            <div class="value" id="createUserName"></div>
+
             <div class="label">提交时间</div>
             <div class="value" id="createTime"></div>
 
@@ -139,6 +142,7 @@
     let currentUser = null;
     let questionId = null;
     let questionData = null;
+    let userList = [];
 
     function checkLogin() {
         const user = getUser();
@@ -203,6 +207,29 @@
         return String(value).replace("T", " ").substring(0, 19);
     }
 
+    async function loadUserList() {
+    try {
+        const result = await get("/user/list");
+
+        if (result.code === 200) {
+            userList = result.data || [];
+        }
+    } catch (error) {
+        console.error("加载用户列表失败：", error);
+        userList = [];
+    }
+}
+
+function getUserNameById(userId) {
+    const user = userList.find(item => Number(item.id) === Number(userId));
+
+    if (!user) {
+        return "未知用户";
+    }
+
+    return (user.realName || user.username || "未命名用户") + "（" + (user.username || "") + "）";
+}
+
     function renderDetail(q) {
         document.getElementById("questionIdText").textContent = q.id ?? "";
         document.getElementById("questionText").textContent = q.questionText || "";
@@ -211,6 +238,7 @@
         document.getElementById("difficulty").textContent = q.difficulty ?? "";
         document.getElementById("correctAnswer").textContent = q.correctAnswer || "";
         document.getElementById("createUser").textContent = q.createUser ?? "";
+        document.getElementById("createUserName").textContent = getUserNameById(q.createUser);
         document.getElementById("createTime").textContent = formatTime(q.createTime);
         document.getElementById("status").textContent = getStatusText(q.status);
 
@@ -354,6 +382,7 @@
             return;
         }
 
+        await loadUserList();
         await loadQuestionDetail();
     }
 

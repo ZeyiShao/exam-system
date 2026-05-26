@@ -12,12 +12,17 @@ import com.example.examsystem.service.QuestionService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class QuestionServiceImpl implements QuestionService {
+
+    private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_REJECTED = "REJECTED";
 
     private final QuestionMapper questionMapper;
     private final CourseMapper courseMapper;
@@ -32,6 +37,12 @@ public class QuestionServiceImpl implements QuestionService {
     public void add(Question question) {
         validateQuestion(question, false);
         normalizeQuestion(question);
+
+        question.setStatus(STATUS_PENDING);
+        question.setAuditUser(null);
+        question.setAuditTime(null);
+        question.setRejectReason(null);
+
         questionMapper.insert(question);
     }
 
@@ -52,7 +63,28 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public void update(Question question) {
         validateQuestion(question, true);
+
+        Question oldQuestion = questionMapper.selectById(question.getId());
+        if (oldQuestion == null) {
+            throw new BusinessException("题目不存在");
+        }
+
         normalizeQuestion(question);
+
+        if (STATUS_REJECTED.equals(oldQuestion.getStatus())) {
+            question.setStatus(STATUS_PENDING);
+            question.setAuditUser(null);
+            question.setAuditTime(null);
+            question.setRejectReason(null);
+        } else if (STATUS_PENDING.equals(oldQuestion.getStatus())) {
+            question.setStatus(STATUS_PENDING);
+            question.setAuditUser(null);
+            question.setAuditTime(null);
+            question.setRejectReason(null);
+        } else if (STATUS_APPROVED.equals(oldQuestion.getStatus())) {
+            throw new BusinessException("已通过审核的题目不能直接修改，请重新新增题目");
+        }
+
         questionMapper.updateById(question);
     }
 
@@ -73,6 +105,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public List<Question> list() {
         LambdaQueryWrapper<Question> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Question::getStatus, STATUS_APPROVED);
         wrapper.orderByDesc(Question::getId);
         return questionMapper.selectList(wrapper);
     }
@@ -87,6 +120,7 @@ public class QuestionServiceImpl implements QuestionService {
         Page<Question> page = new Page<>(pageNum, pageSize);
 
         LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Question::getStatus, STATUS_APPROVED);
 
         // 课程筛选：方案B使用 courseId，不再使用 course 字符串筛选
         if (courseId != null) {
@@ -111,6 +145,139 @@ public class QuestionServiceImpl implements QuestionService {
         queryWrapper.orderByDesc(Question::getId);
 
         return questionMapper.selectPage(page, queryWrapper);
+    }
+
+    @Override
+    public IPage<Question> reviewPage(Integer pageNum,
+                                      Integer pageSize,
+                                      Integer courseId,
+                                      String questionType,
+                                      String keyword) {
+        Page<Question> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Question::getStatus, STATUS_PENDING);
+
+        if (courseId != null) {
+            queryWrapper.eq(Question::getCourseId, courseId);
+        }
+
+        if (StringUtils.hasText(questionType)) {
+            queryWrapper.eq(Question::getQuestionType, questionType);
+        }
+
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.like(Question::getQuestionText, keyword);
+        }
+
+        queryWrapper.orderByDesc(Question::getId);
+
+        return questionMapper.selectPage(page, queryWrapper);
+    }
+
+    @Override
+    public IPage<Question> myPage(Integer pageNum,
+                                  Integer pageSize,
+                                  Integer createUser,
+                                  String status,
+                                  Integer courseId,
+                                  String questionType,
+                                  String keyword) {
+        if (createUser == null) {
+            throw new BusinessException("创建人ID不能为空");
+        }
+
+        Page<Question> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Question::getCreateUser, createUser);
+
+        if (StringUtils.hasText(status)) {
+            if (!STATUS_PENDING.equals(status) && !STATUS_REJECTED.equals(status)) {
+                throw new BusinessException("我的题目只能查询待审核或已驳回状态");
+            }
+            queryWrapper.eq(Question::getStatus, status);
+        } else {
+            queryWrapper.in(Question::getStatus, STATUS_PENDING, STATUS_REJECTED);
+        }
+
+        if (courseId != null) {
+            queryWrapper.eq(Question::getCourseId, courseId);
+        }
+
+        if (StringUtils.hasText(questionType)) {
+            queryWrapper.eq(Question::getQuestionType, questionType);
+        }
+
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.like(Question::getQuestionText, keyword);
+        }
+
+        queryWrapper.orderByDesc(Question::getId);
+
+        return questionMapper.selectPage(page, queryWrapper);
+    }
+
+    @Override
+    public void approve(Integer id, Long auditUser) {
+        if (id == null) {
+            throw new BusinessException("题目ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        Question question = questionMapper.selectById(id);
+        if (question == null) {
+            throw new BusinessException("题目不存在");
+        }
+
+        if (!STATUS_PENDING.equals(question.getStatus())) {
+            throw new BusinessException("只有待审核题目可以审核通过");
+        }
+
+        Question updateQuestion = new Question();
+        updateQuestion.setId(id);
+        updateQuestion.setStatus(STATUS_APPROVED);
+        updateQuestion.setAuditUser(auditUser);
+        updateQuestion.setAuditTime(LocalDateTime.now());
+        updateQuestion.setRejectReason(null);
+
+        questionMapper.updateById(updateQuestion);
+    }
+
+    @Override
+    public void reject(Integer id, Long auditUser, String rejectReason) {
+        if (id == null) {
+            throw new BusinessException("题目ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        if (!StringUtils.hasText(rejectReason)) {
+            throw new BusinessException("驳回原因不能为空");
+        }
+
+        Question question = questionMapper.selectById(id);
+        if (question == null) {
+            throw new BusinessException("题目不存在");
+        }
+
+        if (!STATUS_PENDING.equals(question.getStatus())) {
+            throw new BusinessException("只有待审核题目可以驳回");
+        }
+
+        Question updateQuestion = new Question();
+        updateQuestion.setId(id);
+        updateQuestion.setStatus(STATUS_REJECTED);
+        updateQuestion.setAuditUser(auditUser);
+        updateQuestion.setAuditTime(LocalDateTime.now());
+        updateQuestion.setRejectReason(rejectReason.trim());
+
+        questionMapper.updateById(updateQuestion);
     }
 
     private void validateQuestion(Question question, boolean isUpdate) {

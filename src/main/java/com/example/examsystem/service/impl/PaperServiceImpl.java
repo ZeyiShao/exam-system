@@ -30,6 +30,8 @@ import java.util.Set;
 @Service
 public class PaperServiceImpl implements PaperService {
 
+    private static final String STATUS_APPROVED = "APPROVED";
+
     private final PaperMapper paperMapper;
     private final PaperQuestionMapper paperQuestionMapper;
     private final QuestionMapper questionMapper;
@@ -279,6 +281,11 @@ public class PaperServiceImpl implements PaperService {
                 throw new BusinessException("题目不存在，题目ID：" + item.getQuestionId());
             }
 
+            if (!STATUS_APPROVED.equals(question.getStatus())) {
+                throw new BusinessException("只能选择审核通过的题目组卷，题目ID：" + item.getQuestionId());
+            }
+
+
             scoreSum += item.getScore();
         }
 
@@ -369,6 +376,7 @@ public class PaperServiceImpl implements PaperService {
 
         LambdaQueryWrapper<Question> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Question::getQuestionType, questionType);
+        wrapper.eq(Question::getStatus, STATUS_APPROVED);
 
         if (courseId != null) {
             wrapper.eq(Question::getCourseId, courseId);

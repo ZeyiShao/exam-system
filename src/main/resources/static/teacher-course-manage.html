@@ -301,7 +301,7 @@
         }
 
         try {
-            const result = await post("/teacherCourse/add", data);
+            const result = await post("/teacherCourse", data);
 
             if (result.code !== 200) {
                 showMessage(result.message || "保存失败");

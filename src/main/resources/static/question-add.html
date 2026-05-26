@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交题目 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .form-item label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .full-row {
+            grid-column: span 2;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .tip-box {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            color: #8a5a00;
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            line-height: 1.8;
+            font-size: 14px;
+        }
+
+        .reject-box {
+            background: #fff1f0;
+            border: 1px solid #ffa39e;
+            color: #a8071a;
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            line-height: 1.8;
+            font-size: 14px;
+            display: none;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full-row {
+                grid-column: span 1;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title" id="pageTitle">提交题目</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title" id="formTitle">新增题目</div>
+
+        <div class="tip-box">
+            教师提交题目后，题目会进入待审核状态。管理员审核通过后，题目才会进入正式题库并参与组卷。
+        </div>
+
+        <div id="rejectBox" class="reject-box">
+            <div><strong>驳回原因：</strong></div>
+            <div id="rejectReasonText"></div>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <input type="hidden" id="questionId">
+
+        <div class="form-grid">
+            <div class="form-item full-row">
+                <label>题目内容</label>
+                <textarea class="input" id="questionText" rows="3" placeholder="请输入题目内容"></textarea>
+            </div>
+
+            <div class="form-item">
+                <label>题型</label>
+                <select class="input" id="questionType" onchange="handleTypeChange()">
+                    <option value="single">单选题</option>
+                    <option value="multiple">多选题</option>
+                    <option value="judge">判断题</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>课程</label>
+                <select class="input" id="courseId">
+                    <option value="">请选择课程</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>难度</label>
+                <select class="input" id="difficulty">
+                    <option value="1">1 - 简单</option>
+                    <option value="2">2 - 普通</option>
+                    <option value="3">3 - 困难</option>
+                </select>
+            </div>
+
+            <div class="form-item">
+                <label>正确答案</label>
+                <input class="input" id="correctAnswer" placeholder="单选如 A，多选如 A,B，判断如 true/false">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 A</label>
+                <input class="input" id="optionA" placeholder="请输入选项A">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 B</label>
+                <input class="input" id="optionB" placeholder="请输入选项B">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 C</label>
+                <input class="input" id="optionC" placeholder="请输入选项C">
+            </div>
+
+            <div class="form-item option-item">
+                <label>选项 D</label>
+                <input class="input" id="optionD" placeholder="请输入选项D">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveQuestion()" id="saveBtn">提交审核</button>
+            <button class="btn btn-gray" onclick="goBack()">返回</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let courseList = [];
+    let editId = null;
+    let editQuestionData = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER" && user.role !== "ADMIN") {
+            alert("当前账号没有提交题目的权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+
+    function goBack() {
+        if (currentUser && currentUser.role === "TEACHER") {
+            window.location.href = "my-question.html";
+            return;
+        }
+
+        window.location.href = "question-manage.html";
+    }
+
+    function handleTypeChange() {
+        const type = document.getElementById("questionType").value;
+        const optionItems = document.querySelectorAll(".option-item");
+        const answerInput = document.getElementById("correctAnswer");
+
+        if (type === "judge") {
+            optionItems.forEach(item => item.style.display = "none");
+            document.getElementById("optionA").value = "";
+            document.getElementById("optionB").value = "";
+            document.getElementById("optionC").value = "";
+            document.getElementById("optionD").value = "";
+            answerInput.placeholder = "判断题请输入 true 或 false";
+        } else {
+            optionItems.forEach(item => item.style.display = "block");
+
+            if (type === "single") {
+                answerInput.placeholder = "单选题请输入 A/B/C/D";
+            } else {
+                answerInput.placeholder = "多选题请输入 A,B 这种格式";
+            }
+        }
+    }
+
+    async function loadCourseList() {
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "课程列表加载失败");
+                return;
+            }
+
+            courseList = result.data || [];
+            renderCourseSelect();
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            showMessage("无法加载课程列表，请检查后端服务");
+        }
+    }
+
+    function renderCourseSelect() {
+        const select = document.getElementById("courseId");
+        const currentValue = select.value;
+
+        select.innerHTML = `<option value="">请选择课程</option>`;
+
+        courseList.forEach(course => {
+            if (course.status && course.status !== "ENABLED") {
+                return;
+            }
+
+            const option = document.createElement("option");
+            option.value = course.id;
+            option.textContent = course.courseName || "";
+            select.appendChild(option);
+        });
+
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
+    async function loadEditQuestion(id) {
+        try {
+            const result = await get("/question/" + id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "题目加载失败");
+                return;
+            }
+
+            const q = result.data;
+            if (!q) {
+                showMessage("题目不存在");
+                return;
+            }
+
+            if (currentUser.role === "TEACHER") {
+                if (Number(q.createUser) !== Number(currentUser.id)) {
+                    showMessage("只能修改自己提交的题目");
+                    document.getElementById("saveBtn").disabled = true;
+                    return;
+                }
+
+                if (q.status !== "REJECTED") {
+                    showMessage("只有被驳回的题目可以修改后重新提交");
+                    document.getElementById("saveBtn").disabled = true;
+                    return;
+                }
+            }
+
+            editQuestionData = q;
+
+            document.getElementById("pageTitle").textContent = "修改并重新提交题目";
+            document.getElementById("formTitle").textContent = "修改被驳回题目";
+            document.getElementById("saveBtn").textContent = "重新提交审核";
+
+            document.getElementById("questionId").value = q.id;
+            document.getElementById("questionText").value = q.questionText || "";
+            document.getElementById("questionType").value = q.questionType || "single";
+            document.getElementById("courseId").value = q.courseId ? String(q.courseId) : "";
+            document.getElementById("difficulty").value = q.difficulty || 1;
+            document.getElementById("correctAnswer").value = q.correctAnswer || "";
+            document.getElementById("optionA").value = q.optionA || "";
+            document.getElementById("optionB").value = q.optionB || "";
+            document.getElementById("optionC").value = q.optionC || "";
+            document.getElementById("optionD").value = q.optionD || "";
+
+            if (q.rejectReason) {
+                document.getElementById("rejectBox").style.display = "block";
+                document.getElementById("rejectReasonText").textContent = q.rejectReason;
+            }
+
+            handleTypeChange();
+        } catch (error) {
+            console.error("加载题目详情失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    function validateQuestion(data) {
+        if (!data.questionText) {
+            showMessage("请输入题目内容");
+            return false;
+        }
+
+        if (!data.questionType) {
+            showMessage("请选择题型");
+            return false;
+        }
+
+        if (!data.courseId) {
+            showMessage("请选择课程");
+            return false;
+        }
+
+        if (!data.correctAnswer) {
+            showMessage("请输入正确答案");
+            return false;
+        }
+
+        if (data.questionType !== "judge") {
+            if (!data.optionA || !data.optionB || !data.optionC || !data.optionD) {
+                showMessage("单选题和多选题需要填写 A、B、C、D 四个选项");
+                return false;
+            }
+        }
+
+        if (data.questionType === "single") {
+            const answer = data.correctAnswer.toUpperCase();
+            if (!["A", "B", "C", "D"].includes(answer)) {
+                showMessage("单选题正确答案只能是 A/B/C/D");
+                return false;
+            }
+            data.correctAnswer = answer;
+        }
+
+        if (data.questionType === "multiple") {
+            const answer = data.correctAnswer
+                .replaceAll("，", ",")
+                .split(",")
+                .map(item => item.trim().toUpperCase())
+                .filter(item => item);
+
+            const uniqueAnswer = [...new Set(answer)];
+            const valid = uniqueAnswer.every(item => ["A", "B", "C", "D"].includes(item));
+
+            if (!valid || uniqueAnswer.length < 2) {
+                showMessage("多选题正确答案至少包含两个选项，格式如 A,B 或 A,C,D");
+                return false;
+            }
+
+            uniqueAnswer.sort();
+            data.correctAnswer = uniqueAnswer.join(",");
+        }
+
+        if (data.questionType === "judge") {
+            const answer = data.correctAnswer.toLowerCase();
+
+            if (answer !== "true" && answer !== "false") {
+                showMessage("判断题正确答案只能填写 true 或 false");
+                return false;
+            }
+
+            data.correctAnswer = answer;
+            data.optionA = "";
+            data.optionB = "";
+            data.optionC = "";
+            data.optionD = "";
+        }
+
+        return true;
+    }
+
+    function buildQuestionData() {
+        const id = document.getElementById("questionId").value;
+        const courseIdValue = document.getElementById("courseId").value;
+
+        const data = {
+            questionText: document.getElementById("questionText").value.trim(),
+            optionA: document.getElementById("optionA").value.trim(),
+            optionB: document.getElementById("optionB").value.trim(),
+            optionC: document.getElementById("optionC").value.trim(),
+            optionD: document.getElementById("optionD").value.trim(),
+            correctAnswer: document.getElementById("correctAnswer").value.trim(),
+            questionType: document.getElementById("questionType").value,
+            difficulty: Number(document.getElementById("difficulty").value),
+            courseId: courseIdValue ? Number(courseIdValue) : null,
+            createUser: Number(currentUser.id)
+        };
+
+        if (id) {
+            data.id = Number(id);
+        }
+
+        if (!validateQuestion(data)) {
+            return null;
+        }
+
+        return data;
+    }
+
+    async function saveQuestion() {
+        const data = buildQuestionData();
+
+        if (!data) {
+            return;
+        }
+
+        try {
+            const result = data.id
+                ? await put("/question", data)
+                : await post("/question", data);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "提交失败");
+                return;
+            }
+
+            showMessage(result.message || "题目提交成功，等待管理员审核");
+
+            setTimeout(() => {
+                goBack();
+            }, 800);
+        } catch (error) {
+            console.error("提交题目失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（" + currentUser.role + "）";
+
+        handleTypeChange();
+
+        editId = getQueryParam("id");
+
+        await loadCourseList();
+
+        if (editId) {
+            await loadEditQuestion(editId);
+        }
+    }
+
+    initPage();
+</script>
+</body>
+</html>

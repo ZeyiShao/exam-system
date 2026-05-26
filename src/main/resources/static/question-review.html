@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题目审核 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 180px;
+        }
+
+        .status-tip {
+            color: #666;
+            line-height: 1.8;
+            font-size: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">题目审核</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">待审核题目</div>
+        <div class="status-tip">
+            该页面只展示教师提交后尚未审核的题目。审核通过后，题目会进入正式题库；驳回后，教师可修改后重新提交。
+        </div>
+
+        <div class="toolbar" style="margin-top: 16px;">
+            <input class="input" id="searchKeyword" placeholder="题目关键字">
+
+            <select class="input" id="searchCourseId">
+                <option value="">全部课程</option>
+            </select>
+
+            <select class="input" id="searchType">
+                <option value="">全部题型</option>
+                <option value="single">单选题</option>
+                <option value="multiple">多选题</option>
+                <option value="judge">判断题</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="loadReviewList()">筛选</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">待审核列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 70px;">ID</th>
+                <th>题目内容</th>
+                <th style="width: 90px;">题型</th>
+                <th style="width: 120px;">课程</th>
+                <th style="width: 80px;">难度</th>
+                <th style="width: 100px;">提交人ID</th>
+                <th style="width: 160px;">提交时间</th>
+                <th style="width: 120px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="reviewTableBody">
+            <tr>
+                <td colspan="8">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let courseList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有题目审核权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知";
+        }
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "";
+        }
+
+        return String(value).replace("T", " ").substring(0, 19);
+    }
+
+    function goDetail(id) {
+        window.location.href = "question-review-detail.html?id=" + id;
+    }
+
+    async function loadCourseList() {
+        try {
+            const result = await get("/course/list");
+
+            if (result.code !== 200) {
+                showMessage(result.message || "课程列表加载失败");
+                return;
+            }
+
+            courseList = result.data || [];
+            renderCourseSelect();
+        } catch (error) {
+            console.error("加载课程列表失败：", error);
+            showMessage("无法加载课程列表，请检查后端服务");
+        }
+    }
+
+    function renderCourseSelect() {
+        const select = document.getElementById("searchCourseId");
+        const currentValue = select.value;
+
+        select.innerHTML = `<option value="">全部课程</option>`;
+
+        courseList.forEach(course => {
+            if (course.status && course.status !== "ENABLED") {
+                return;
+            }
+
+            const option = document.createElement("option");
+            option.value = course.id;
+            option.textContent = course.courseName || "";
+            select.appendChild(option);
+        });
+
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
+    function clearSearch() {
+        document.getElementById("searchKeyword").value = "";
+        document.getElementById("searchCourseId").value = "";
+        document.getElementById("searchType").value = "";
+        loadReviewList();
+    }
+
+    async function loadReviewList() {
+        const tbody = document.getElementById("reviewTableBody");
+        tbody.innerHTML = `<tr><td colspan="8">加载中...</td></tr>`;
+        showMessage("");
+
+        const keyword = document.getElementById("searchKeyword").value.trim();
+        const courseId = document.getElementById("searchCourseId").value;
+        const questionType = document.getElementById("searchType").value;
+
+        const params = new URLSearchParams();
+        params.append("pageNum", "1");
+        params.append("pageSize", "1000");
+
+        if (courseId) params.append("courseId", courseId);
+        if (questionType) params.append("questionType", questionType);
+        if (keyword) params.append("keyword", keyword);
+
+        try {
+            const result = await get("/question/review/page?" + params.toString());
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="8">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            const list = result.data?.records || [];
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8">暂无待审核题目</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(q => `
+                <tr>
+                    <td>${q.id ?? ""}</td>
+                    <td style="text-align:left;">${q.questionText || ""}</td>
+                    <td>${getQuestionTypeText(q.questionType)}</td>
+                    <td>${q.course || ""}</td>
+                    <td>${q.difficulty ?? ""}</td>
+                    <td>${q.createUser ?? ""}</td>
+                    <td>${formatTime(q.createTime)}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="goDetail(${q.id})">查看审核</button>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载待审核题目失败：", error);
+            tbody.innerHTML = `<tr><td colspan="8">无法连接后端</td></tr>`;
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（管理员）";
+
+        await loadCourseList();
+        await loadReviewList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

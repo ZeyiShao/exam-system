@@ -23,4 +23,22 @@ public interface QuestionService {
                          String questionType,
                          Integer difficulty,
                          String keyword);
+
+    IPage<Question> reviewPage(Integer pageNum,
+                               Integer pageSize,
+                               Integer courseId,
+                               String questionType,
+                               String keyword);
+
+    IPage<Question> myPage(Integer pageNum,
+                           Integer pageSize,
+                           Integer createUser,
+                           String status,
+                           Integer courseId,
+                           String questionType,
+                           String keyword);
+
+    void approve(Integer id, Long auditUser);
+
+    void reject(Integer id, Long auditUser, String rejectReason);
 }

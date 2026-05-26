@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>题库管理 - 在线考试系统</title>
+    <title>正式题库 - 在线考试系统</title>
 
     <link rel="stylesheet" href="css/common.css">
     <script src="js/config.js"></script>
@@ -93,7 +93,7 @@
 
 <body>
 <div class="header">
-    <div class="title">题库管理</div>
+    <div class="title">正式题库</div>
     <div class="user-box">
         <span id="userText">未登录</span>
         <button class="btn btn-danger" onclick="logout()">退出登录</button>
@@ -105,7 +105,8 @@
         <div class="title">题目操作</div>
 
         <div class="toolbar">
-            <button class="btn btn-primary" onclick="showAddForm()">新增题目</button>
+            <button class="btn btn-primary" onclick="goAddQuestion()">新增题目</button>
+            <button class="btn btn-gray" onclick="goMyQuestion()">我的题目</button>
             <button class="btn btn-gray" onclick="loadQuestionList()">刷新列表</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
         </div>
@@ -207,7 +208,7 @@
     </div>
 
     <div class="card">
-        <div class="title">题目列表</div>
+        <div class="title">已通过题目列表</div>
 
         <table class="table">
             <thead>
@@ -495,6 +496,14 @@
         return data;
     }
 
+    function goAddQuestion() {
+        window.location.href = "question-add.html";
+    }
+
+    function goMyQuestion() {
+        window.location.href = "my-question.html";
+    }
+
     async function saveQuestion() {
         const data = buildQuestionData();
 
@@ -578,20 +587,26 @@
                 return;
             }
 
-            tbody.innerHTML = questionList.map(q => `
-                <tr>
-                    <td>${q.id ?? ""}</td>
-                    <td style="text-align:left;">${q.questionText || ""}</td>
-                    <td>${getQuestionTypeText(q.questionType)}</td>
-                    <td>${q.course || getCourseNameById(q.courseId) || ""}</td>
-                    <td>${q.difficulty ?? ""}</td>
-                    <td>${q.correctAnswer || ""}</td>
-                    <td>
+            tbody.innerHTML = questionList.map(q => {
+                const actionHtml = currentUser.role === "ADMIN"
+                    ? `
                         <button class="btn btn-primary" onclick="editQuestion(${q.id})">编辑</button>
                         <button class="btn btn-danger" onclick="deleteQuestion(${q.id})">删除</button>
-                    </td>
-                </tr>
-            `).join("");
+                    `
+                    : `<span style="color:#999;">仅查看</span>`;
+
+                return `
+                    <tr>
+                        <td>${q.id ?? ""}</td>
+                        <td style="text-align:left;">${q.questionText || ""}</td>
+                        <td>${getQuestionTypeText(q.questionType)}</td>
+                        <td>${q.course || getCourseNameById(q.courseId) || ""}</td>
+                        <td>${q.difficulty ?? ""}</td>
+                        <td>${q.correctAnswer || ""}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            }).join("");
         } catch (error) {
             console.error("加载题目列表失败：", error);
             tbody.innerHTML = `<tr><td colspan="7">无法连接后端</td></tr>`;

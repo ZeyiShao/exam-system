@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题目审核详情 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 12px;
+            line-height: 1.8;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #555;
+            text-align: right;
+        }
+
+        .value {
+            color: #303133;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .reject-box {
+            margin-top: 16px;
+            display: none;
+        }
+
+        @media (max-width: 900px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .label {
+                text-align: left;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">题目审核详情</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">题目信息</div>
+
+        <div id="message" class="message"></div>
+
+        <div class="detail-grid" id="detailBox">
+            <div class="label">题目ID</div>
+            <div class="value" id="questionIdText"></div>
+
+            <div class="label">题目内容</div>
+            <div class="value" id="questionText"></div>
+
+            <div class="label">题型</div>
+            <div class="value" id="questionType"></div>
+
+            <div class="label">课程</div>
+            <div class="value" id="course"></div>
+
+            <div class="label">难度</div>
+            <div class="value" id="difficulty"></div>
+
+            <div class="label option-row">选项A</div>
+            <div class="value option-row" id="optionA"></div>
+
+            <div class="label option-row">选项B</div>
+            <div class="value option-row" id="optionB"></div>
+
+            <div class="label option-row">选项C</div>
+            <div class="value option-row" id="optionC"></div>
+
+            <div class="label option-row">选项D</div>
+            <div class="value option-row" id="optionD"></div>
+
+            <div class="label">正确答案</div>
+            <div class="value" id="correctAnswer"></div>
+
+            <div class="label">提交人ID</div>
+            <div class="value" id="createUser"></div>
+
+            <div class="label">提交时间</div>
+            <div class="value" id="createTime"></div>
+
+            <div class="label">当前状态</div>
+            <div class="value" id="status"></div>
+        </div>
+
+        <div class="reject-box" id="rejectBox">
+            <label>驳回原因</label>
+            <textarea class="input" id="rejectReason" rows="3" placeholder="请输入驳回原因，例如：题干描述不清楚、答案填写错误、选项重复等"></textarea>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="approveQuestion()">审核通过</button>
+            <button class="btn btn-danger" onclick="showRejectBox()">驳回题目</button>
+            <button class="btn btn-primary" id="confirmRejectBtn" onclick="rejectQuestion()" style="display:none;">确认驳回</button>
+            <button class="btn btn-gray" onclick="goBack()">返回列表</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let questionId = null;
+    let questionData = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有题目审核权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+
+    function goBack() {
+        window.location.href = "question-review.html";
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知";
+        }
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "PENDING":
+                return "待审核";
+            case "APPROVED":
+                return "已通过";
+            case "REJECTED":
+                return "已驳回";
+            default:
+                return status || "";
+        }
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "";
+        }
+
+        return String(value).replace("T", " ").substring(0, 19);
+    }
+
+    function renderDetail(q) {
+        document.getElementById("questionIdText").textContent = q.id ?? "";
+        document.getElementById("questionText").textContent = q.questionText || "";
+        document.getElementById("questionType").textContent = getQuestionTypeText(q.questionType);
+        document.getElementById("course").textContent = q.course || "";
+        document.getElementById("difficulty").textContent = q.difficulty ?? "";
+        document.getElementById("correctAnswer").textContent = q.correctAnswer || "";
+        document.getElementById("createUser").textContent = q.createUser ?? "";
+        document.getElementById("createTime").textContent = formatTime(q.createTime);
+        document.getElementById("status").textContent = getStatusText(q.status);
+
+        document.getElementById("optionA").textContent = q.optionA || "";
+        document.getElementById("optionB").textContent = q.optionB || "";
+        document.getElementById("optionC").textContent = q.optionC || "";
+        document.getElementById("optionD").textContent = q.optionD || "";
+
+        const optionRows = document.querySelectorAll(".option-row");
+        if (q.questionType === "judge") {
+            optionRows.forEach(item => item.style.display = "none");
+        } else {
+            optionRows.forEach(item => item.style.display = "block");
+        }
+    }
+
+    async function loadQuestionDetail() {
+        try {
+            const result = await get("/question/" + questionId);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "题目加载失败");
+                return;
+            }
+
+            questionData = result.data;
+
+            if (!questionData) {
+                showMessage("题目不存在");
+                return;
+            }
+
+            renderDetail(questionData);
+
+            if (questionData.status !== "PENDING") {
+                showMessage("该题目当前不是待审核状态，不能继续审核");
+            }
+        } catch (error) {
+            console.error("加载题目详情失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function approveQuestion() {
+        if (!questionData || questionData.status !== "PENDING") {
+            showMessage("只有待审核题目可以审核通过");
+            return;
+        }
+
+        const ok = confirm("确认审核通过该题目吗？通过后题目将进入正式题库。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await put("/question/" + questionId + "/approve?auditUser=" + currentUser.id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "审核失败");
+                return;
+            }
+
+            showMessage(result.message || "审核通过成功");
+
+            setTimeout(() => {
+                goBack();
+            }, 800);
+        } catch (error) {
+            console.error("审核通过失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    function showRejectBox() {
+        if (!questionData || questionData.status !== "PENDING") {
+            showMessage("只有待审核题目可以驳回");
+            return;
+        }
+
+        document.getElementById("rejectBox").style.display = "block";
+        document.getElementById("confirmRejectBtn").style.display = "inline-block";
+        document.getElementById("rejectReason").focus();
+    }
+
+    async function rejectQuestion() {
+        if (!questionData || questionData.status !== "PENDING") {
+            showMessage("只有待审核题目可以驳回");
+            return;
+        }
+
+        const rejectReason = document.getElementById("rejectReason").value.trim();
+
+        if (!rejectReason) {
+            showMessage("请输入驳回原因");
+            return;
+        }
+
+        const ok = confirm("确认驳回该题目吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await put("/question/" + questionId + "/reject", {
+                auditUser: Number(currentUser.id),
+                rejectReason: rejectReason
+            });
+
+            if (result.code !== 200) {
+                showMessage(result.message || "驳回失败");
+                return;
+            }
+
+            showMessage(result.message || "题目已驳回");
+
+            setTimeout(() => {
+                goBack();
+            }, 800);
+        } catch (error) {
+            console.error("驳回题目失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（管理员）";
+
+        questionId = getQueryParam("id");
+
+        if (!questionId) {
+            showMessage("缺少题目ID");
+            return;
+        }
+
+        await loadQuestionDetail();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

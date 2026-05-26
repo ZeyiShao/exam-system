@@ -44,4 +44,24 @@ public class Question {
     private Integer createUser;
 
     private LocalDateTime createTime;
+
+    /**
+     * 题目状态：PENDING 待审核 / APPROVED 已通过 / REJECTED 已驳回
+     */
+    private String status;
+
+    /**
+     * 审核人ID
+     */
+    private Long auditUser;
+
+    /**
+     * 审核时间
+     */
+    private LocalDateTime auditTime;
+
+    /**
+     * 驳回原因
+     */
+    private String rejectReason;
 }

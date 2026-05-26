@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.examsystem.common.Result;
 import com.example.examsystem.entity.Question;
 import com.example.examsystem.service.QuestionService;
+import com.example.examsystem.dto.QuestionRejectDTO;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,7 @@ public class QuestionController {
     @PostMapping
     public Result<Void> add(@RequestBody Question question) {
         questionService.add(question);
-        return Result.success("新增成功", null);
+        return Result.success("题目提交成功，等待管理员审核", null);
     }
 
     @DeleteMapping("/{id}")
@@ -61,5 +62,49 @@ public class QuestionController {
                 pageNum, pageSize, courseId, questionType, difficulty, keyword);
 
         return Result.success("查询成功", page);
+    }
+
+    @GetMapping("/review/page")
+    public Result<IPage<Question>> reviewPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam(required = false) Integer courseId,
+            @RequestParam(required = false) String questionType,
+            @RequestParam(required = false) String keyword) {
+
+        IPage<Question> page = questionService.reviewPage(
+                pageNum, pageSize, courseId, questionType, keyword);
+
+        return Result.success("查询成功", page);
+    }
+
+    @GetMapping("/my/page")
+    public Result<IPage<Question>> myPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam Integer createUser,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer courseId,
+            @RequestParam(required = false) String questionType,
+            @RequestParam(required = false) String keyword) {
+
+        IPage<Question> page = questionService.myPage(
+                pageNum, pageSize, createUser, status, courseId, questionType, keyword);
+
+        return Result.success("查询成功", page);
+    }
+
+    @PutMapping("/{id}/approve")
+    public Result<Void> approve(@PathVariable Integer id,
+                                @RequestParam Long auditUser) {
+        questionService.approve(id, auditUser);
+        return Result.success("审核通过成功", null);
+    }
+
+    @PutMapping("/{id}/reject")
+    public Result<Void> reject(@PathVariable Integer id,
+                               @RequestBody QuestionRejectDTO dto) {
+        questionService.reject(id, dto.getAuditUser(), dto.getRejectReason());
+        return Result.success("题目已驳回", null);
     }
 }

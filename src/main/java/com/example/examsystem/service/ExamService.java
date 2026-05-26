@@ -14,6 +14,10 @@ public interface ExamService {
 
     void update(Exam exam);
 
+    void approve(Integer id, Long auditUser);
+
+    void reject(Integer id, Long auditUser, String rejectReason);
+
     void submitExam(ExamSubmitDTO dto);
 
     Exam getById(Integer id);
@@ -24,4 +28,14 @@ public interface ExamService {
                      Integer pageSize,
                      String examName,
                      String status);
+
+    IPage<Exam> reviewPage(Integer pageNum,
+                           Integer pageSize,
+                           String examName);
+
+    IPage<Exam> myPage(Integer pageNum,
+                       Integer pageSize,
+                       Long teacherId,
+                       String auditStatus,
+                       String examName);
 }

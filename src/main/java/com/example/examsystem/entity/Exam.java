@@ -30,7 +30,30 @@ public class Exam {
 
     private Integer duration;
 
+    /**
+            * 考试运行状态：NOT_STARTED / ONGOING / FINISHED / CANCELLED
+ */
     private String status;
+
+    /**
+     * 审核状态：PENDING / APPROVED / REJECTED
+     */
+    private String auditStatus;
+
+    /**
+     * 审核人ID
+     */
+    private Long auditUser;
+
+    /**
+     * 审核时间
+     */
+    private LocalDateTime auditTime;
+
+    /**
+     * 驳回原因
+     */
+    private String rejectReason;
 
     private LocalDateTime createTime;
 }

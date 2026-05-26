@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>考试审核 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 240px;
+        }
+
+        .status-pending {
+            color: #d48806;
+            font-weight: bold;
+        }
+
+        .empty {
+            text-align: center;
+            color: #999;
+            padding: 24px 0;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">考试审核</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">审核操作</div>
+
+        <div class="toolbar">
+            <input class="input" id="searchExamName" placeholder="请输入考试名称关键字">
+            <button class="btn btn-primary" onclick="loadReviewExamList()">搜索</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+            <button class="btn btn-gray" onclick="loadReviewExamList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goExamManage()">正式考试</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">待审核考试列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 70px;">ID</th>
+                <th>考试名称</th>
+                <th style="width: 80px;">试卷ID</th>
+                <th style="width: 80px;">班级ID</th>
+                <th style="width: 80px;">课程ID</th>
+                <th style="width: 90px;">教师ID</th>
+                <th style="width: 170px;">开始时间</th>
+                <th style="width: 170px;">结束时间</th>
+                <th style="width: 80px;">时长</th>
+                <th style="width: 90px;">审核状态</th>
+                <th style="width: 250px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="examTableBody">
+            <tr>
+                <td colspan="11">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有考试审核权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "";
+        }
+
+        return String(value).replace("T", " ").substring(0, 19);
+    }
+
+    function goExamManage() {
+        window.location.href = "exam-manage.html";
+    }
+
+    function goExamDetail(id) {
+        window.location.href = "exam-detail.html?id=" + id;
+    }
+
+    function clearSearch() {
+        document.getElementById("searchExamName").value = "";
+        loadReviewExamList();
+    }
+
+    async function loadReviewExamList() {
+        const tbody = document.getElementById("examTableBody");
+        tbody.innerHTML = `<tr><td colspan="11">加载中...</td></tr>`;
+        showMessage("");
+
+        const examName = document.getElementById("searchExamName").value.trim();
+
+        const params = new URLSearchParams();
+        params.append("pageNum", "1");
+        params.append("pageSize", "1000");
+
+        if (examName) {
+            params.append("examName", examName);
+        }
+
+        try {
+            const result = await get("/exam/review/page?" + params.toString());
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="11">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            const list = result.data?.records || [];
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="empty">暂无待审核考试</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(exam => `
+                <tr>
+                    <td>${exam.id ?? ""}</td>
+                    <td>${exam.examName || ""}</td>
+                    <td>${exam.paperId ?? ""}</td>
+                    <td>${exam.classId ?? ""}</td>
+                    <td>${exam.courseId ?? ""}</td>
+                    <td>${exam.teacherId ?? ""}</td>
+                    <td>${formatTime(exam.startTime)}</td>
+                    <td>${formatTime(exam.endTime)}</td>
+                    <td>${exam.duration ?? ""} 分钟</td>
+                    <td><span class="status-pending">待审核</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-gray" onclick="goExamDetail(${exam.id})">详情</button>
+                            <button class="btn btn-primary" onclick="approveExam(${exam.id})">通过</button>
+                            <button class="btn btn-danger" onclick="rejectExam(${exam.id})">驳回</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+        } catch (error) {
+            console.error("加载待审核考试失败：", error);
+            tbody.innerHTML = `<tr><td colspan="11">无法连接后端</td></tr>`;
+        }
+    }
+
+    async function approveExam(id) {
+        const ok = confirm("确认审核通过该考试吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await put("/exam/" + id + "/approve?auditUser=" + currentUser.id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "审核失败");
+                return;
+            }
+
+            showMessage(result.message || "审核通过成功");
+            loadReviewExamList();
+        } catch (error) {
+            console.error("审核通过失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function rejectExam(id) {
+        const reason = prompt("请输入驳回原因");
+
+        if (reason === null) {
+            return;
+        }
+
+        if (!reason.trim()) {
+            showMessage("驳回原因不能为空");
+            return;
+        }
+
+        try {
+            const result = await put("/exam/" + id + "/reject", {
+                auditUser: Number(currentUser.id),
+                rejectReason: reason.trim()
+            });
+
+            if (result.code !== 200) {
+                showMessage(result.message || "驳回失败");
+                return;
+            }
+
+            showMessage(result.message || "考试已驳回");
+            loadReviewExamList();
+        } catch (error) {
+            console.error("驳回考试失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（管理员）";
+
+        await loadReviewExamList();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

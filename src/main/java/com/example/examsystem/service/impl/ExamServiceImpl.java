@@ -39,6 +39,9 @@ import java.util.Set;
 public class ExamServiceImpl implements ExamService {
 
     private static final String PAPER_STATUS_APPROVED = "APPROVED";
+    private static final String AUDIT_PENDING = "PENDING";
+    private static final String AUDIT_APPROVED = "APPROVED";
+    private static final String AUDIT_REJECTED = "REJECTED";
     private final ExamMapper examMapper;
     private final PaperMapper paperMapper;
     private final ClassInfoMapper classInfoMapper;
@@ -80,6 +83,11 @@ public class ExamServiceImpl implements ExamService {
             exam.setStatus("NOT_STARTED");
         }
 
+        exam.setAuditStatus(AUDIT_PENDING);
+        exam.setAuditUser(null);
+        exam.setAuditTime(null);
+        exam.setRejectReason(null);
+
         examMapper.insert(exam);
     }
 
@@ -109,7 +117,81 @@ public class ExamServiceImpl implements ExamService {
             exam.setStatus(oldExam.getStatus());
         }
 
+        if (AUDIT_REJECTED.equals(oldExam.getAuditStatus()) || AUDIT_PENDING.equals(oldExam.getAuditStatus())) {
+            exam.setAuditStatus(AUDIT_PENDING);
+            exam.setAuditUser(null);
+            exam.setAuditTime(null);
+            exam.setRejectReason(null);
+        } else {
+            exam.setAuditStatus(oldExam.getAuditStatus());
+            exam.setAuditUser(oldExam.getAuditUser());
+            exam.setAuditTime(oldExam.getAuditTime());
+            exam.setRejectReason(oldExam.getRejectReason());
+        }
+
         examMapper.updateById(exam);
+    }
+
+    @Override
+    public void approve(Integer id, Long auditUser) {
+        if (id == null) {
+            throw new BusinessException("考试ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        Exam exam = examMapper.selectById(id);
+        if (exam == null) {
+            throw new BusinessException("考试不存在");
+        }
+
+        if (!AUDIT_PENDING.equals(exam.getAuditStatus())) {
+            throw new BusinessException("只有待审核考试可以审核通过");
+        }
+
+        Exam updateExam = new Exam();
+        updateExam.setId(id);
+        updateExam.setAuditStatus(AUDIT_APPROVED);
+        updateExam.setAuditUser(auditUser);
+        updateExam.setAuditTime(LocalDateTime.now());
+        updateExam.setRejectReason(null);
+
+        examMapper.updateById(updateExam);
+    }
+
+    @Override
+    public void reject(Integer id, Long auditUser, String rejectReason) {
+        if (id == null) {
+            throw new BusinessException("考试ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        if (!StringUtils.hasText(rejectReason)) {
+            throw new BusinessException("驳回原因不能为空");
+        }
+
+        Exam exam = examMapper.selectById(id);
+        if (exam == null) {
+            throw new BusinessException("考试不存在");
+        }
+
+        if (!AUDIT_PENDING.equals(exam.getAuditStatus())) {
+            throw new BusinessException("只有待审核考试可以驳回");
+        }
+
+        Exam updateExam = new Exam();
+        updateExam.setId(id);
+        updateExam.setAuditStatus(AUDIT_REJECTED);
+        updateExam.setAuditUser(auditUser);
+        updateExam.setAuditTime(LocalDateTime.now());
+        updateExam.setRejectReason(rejectReason.trim());
+
+        examMapper.updateById(updateExam);
     }
 
     @Override
@@ -124,6 +206,7 @@ public class ExamServiceImpl implements ExamService {
     @Override
     public List<Exam> list() {
         LambdaQueryWrapper<Exam> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Exam::getAuditStatus, AUDIT_APPROVED);
         wrapper.orderByDesc(Exam::getId);
         return examMapper.selectList(wrapper);
     }
@@ -136,6 +219,7 @@ public class ExamServiceImpl implements ExamService {
         Page<Exam> page = new Page<>(pageNum, pageSize);
 
         LambdaQueryWrapper<Exam> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Exam::getAuditStatus, AUDIT_APPROVED);
 
         if (StringUtils.hasText(examName)) {
             wrapper.like(Exam::getExamName, examName);
@@ -143,6 +227,57 @@ public class ExamServiceImpl implements ExamService {
 
         if (StringUtils.hasText(status)) {
             wrapper.eq(Exam::getStatus, status);
+        }
+
+        wrapper.orderByDesc(Exam::getId);
+
+        return examMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public IPage<Exam> reviewPage(Integer pageNum,
+                                  Integer pageSize,
+                                  String examName) {
+        Page<Exam> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Exam> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Exam::getAuditStatus, AUDIT_PENDING);
+
+        if (StringUtils.hasText(examName)) {
+            wrapper.like(Exam::getExamName, examName);
+        }
+
+        wrapper.orderByDesc(Exam::getId);
+
+        return examMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public IPage<Exam> myPage(Integer pageNum,
+                              Integer pageSize,
+                              Long teacherId,
+                              String auditStatus,
+                              String examName) {
+        if (teacherId == null) {
+            throw new BusinessException("教师ID不能为空");
+        }
+
+        Page<Exam> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Exam> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Exam::getTeacherId, teacherId);
+
+        if (StringUtils.hasText(auditStatus)) {
+            if (!AUDIT_PENDING.equals(auditStatus) && !AUDIT_REJECTED.equals(auditStatus)) {
+                throw new BusinessException("我的考试只能查询待审核或已驳回状态");
+            }
+            wrapper.eq(Exam::getAuditStatus, auditStatus);
+        } else {
+            wrapper.in(Exam::getAuditStatus, AUDIT_PENDING, AUDIT_REJECTED);
+        }
+
+        if (StringUtils.hasText(examName)) {
+            wrapper.like(Exam::getExamName, examName);
         }
 
         wrapper.orderByDesc(Exam::getId);

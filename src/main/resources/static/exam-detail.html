@@ -51,7 +51,7 @@
         <div class="actions">
             <button class="btn btn-gray" onclick="goBack()">返回考试管理</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
-            <button class="btn btn-primary" onclick="goEdit()">编辑考试</button>
+            <button class="btn btn-primary" id="editBtn" style="display:none;" onclick="goEdit()">编辑考试</button>
         </div>
         <div id="message" class="message"></div>
     </div>
@@ -112,6 +112,17 @@
     }
 
     function goBack() {
+        if (
+            currentUser &&
+            currentUser.role === "TEACHER" &&
+            examDetail &&
+            Number(examDetail.teacherId) === Number(currentUser.id) &&
+            (examDetail.auditStatus === "PENDING" || examDetail.auditStatus === "REJECTED")
+        ) {
+            window.location.href = "my-exam.html";
+            return;
+        }
+
         window.location.href = "exam-manage.html";
     }
 
@@ -221,6 +232,7 @@
 
             examDetail = result.data;
             renderExamInfo();
+            updateEditButtonVisible();
 
             if (examDetail.paperId) {
                 await loadPaperDetail(examDetail.paperId);
@@ -411,6 +423,36 @@
 
         await loadBaseData();
         await loadExamDetail();
+    }
+
+    function canEditExam() {
+        if (!currentUser || !examDetail) {
+            return false;
+        }
+
+        if (currentUser.role === "ADMIN") {
+            return true;
+        }
+
+        if (
+            currentUser.role === "TEACHER" &&
+            examDetail.auditStatus === "REJECTED" &&
+            Number(examDetail.teacherId) === Number(currentUser.id)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function updateEditButtonVisible() {
+        const editBtn = document.getElementById("editBtn");
+
+        if (!editBtn) {
+            return;
+        }
+
+        editBtn.style.display = canEditExam() ? "inline-block" : "none";
     }
 
     initPage();

@@ -1,6 +1,7 @@
 package com.example.examsystem.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.example.examsystem.dto.ExamRejectDTO;
 import com.example.examsystem.common.Result;
 import com.example.examsystem.dto.ExamSubmitDTO;
 import com.example.examsystem.entity.Exam;
@@ -37,6 +38,20 @@ public class ExamController {
         return Result.success("修改考试成功", null);
     }
 
+    @PutMapping("/{id}/approve")
+    public Result<Void> approve(@PathVariable Integer id,
+                                @RequestParam Long auditUser) {
+        examService.approve(id, auditUser);
+        return Result.success("考试审核通过成功", null);
+    }
+
+    @PutMapping("/{id}/reject")
+    public Result<Void> reject(@PathVariable Integer id,
+                               @RequestBody ExamRejectDTO dto) {
+        examService.reject(id, dto.getAuditUser(), dto.getRejectReason());
+        return Result.success("考试已驳回", null);
+    }
+
     @GetMapping("/{id}")
     public Result<Exam> getById(@PathVariable Integer id) {
         return Result.success("查询成功", examService.getById(id));
@@ -56,6 +71,28 @@ public class ExamController {
 
         return Result.success("查询成功",
                 examService.page(pageNum, pageSize, examName, status));
+    }
+
+    @GetMapping("/review/page")
+    public Result<IPage<Exam>> reviewPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam(required = false) String examName) {
+
+        return Result.success("查询成功",
+                examService.reviewPage(pageNum, pageSize, examName));
+    }
+
+    @GetMapping("/my/page")
+    public Result<IPage<Exam>> myPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam Long teacherId,
+            @RequestParam(required = false) String auditStatus,
+            @RequestParam(required = false) String examName) {
+
+        return Result.success("查询成功",
+                examService.myPage(pageNum, pageSize, teacherId, auditStatus, examName));
     }
 
     @PostMapping("/submit")

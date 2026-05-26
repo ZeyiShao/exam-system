@@ -80,6 +80,8 @@
 
         <div class="top-actions">
             <button class="btn btn-primary" onclick="goAddExam()">新增考试</button>
+            <button class="btn btn-gray" id="myExamBtn" onclick="goMyExam()" style="display:none;">我的考试</button>
+            <button class="btn btn-gray" id="reviewExamBtn" onclick="goExamReview()" style="display:none;">考试审核</button>
             <button class="btn btn-gray" onclick="loadExamList()">刷新列表</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
         </div>
@@ -249,9 +251,31 @@
         }
     }
 
+    function renderActionButtons(exam) {
+        if (currentUser && currentUser.role === "ADMIN") {
+            return `
+                <button class="btn btn-primary" onclick="goDetailExam(${exam.id})">详情</button>
+                <button class="btn btn-primary" onclick="goEditExam(${exam.id})">编辑</button>
+                <button class="btn btn-danger" onclick="deleteExam(${exam.id})">删除</button>
+            `;
+        }
+
+        return `
+            <button class="btn btn-primary" onclick="goDetailExam(${exam.id})">详情</button>
+        `;
+    }
+
 
     function goAddExam() {
         window.location.href = "exam-edit.html";
+    }
+
+    function goMyExam() {
+        window.location.href = "my-exam.html";
+    }
+
+    function goExamReview() {
+        window.location.href = "exam-review.html";
     }
 
     function goEditExam(id) {
@@ -326,9 +350,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn btn-primary" onclick="goDetailExam(${exam.id})">详情</button>
-                                <button class="btn btn-primary" onclick="goEditExam(${exam.id})">编辑</button>
-                                <button class="btn btn-danger" onclick="deleteExam(${exam.id})">删除</button>
+                                ${renderActionButtons(exam)}
                             </div>
                         </td>
                     </tr>
@@ -349,6 +371,17 @@
 
         document.getElementById("userText").textContent =
             "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        const myExamBtn = document.getElementById("myExamBtn");
+        const reviewExamBtn = document.getElementById("reviewExamBtn");
+
+        if (currentUser.role === "TEACHER" && myExamBtn) {
+            myExamBtn.style.display = "inline-block";
+        }
+
+        if (currentUser.role === "ADMIN" && reviewExamBtn) {
+            reviewExamBtn.style.display = "inline-block";
+        }
 
         await loadBaseData();
         await loadExamList();

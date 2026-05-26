@@ -156,6 +156,12 @@ public class PaperServiceImpl implements PaperService {
         detailVO.setCreateUser(paper.getCreateUser());
         detailVO.setCreateTime(paper.getCreateTime());
 
+        detailVO.setStatus(paper.getStatus());
+        detailVO.setAuditUser(paper.getAuditUser());
+        detailVO.setAuditTime(paper.getAuditTime());
+        detailVO.setRejectReason(paper.getRejectReason());
+        detailVO.setPaperType(paper.getPaperType());
+
         LambdaQueryWrapper<PaperQuestion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PaperQuestion::getPaperId, id);
         List<PaperQuestion> paperQuestionList = paperQuestionMapper.selectList(wrapper);

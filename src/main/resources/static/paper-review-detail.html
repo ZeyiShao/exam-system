@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>试卷审核详情 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 12px;
+            line-height: 1.8;
+            margin-bottom: 18px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #555;
+            text-align: right;
+        }
+
+        .value {
+            color: #303133;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .reject-box {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .status-pending {
+            color: #d48806;
+            font-weight: bold;
+        }
+
+        .status-approved {
+            color: #389e0d;
+            font-weight: bold;
+        }
+
+        .status-rejected {
+            color: #cf1322;
+            font-weight: bold;
+        }
+
+        .question-text {
+            text-align: left;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 900px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .label {
+                text-align: left;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">试卷审核详情</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">试卷基本信息</div>
+
+        <div id="message" class="message"></div>
+
+        <div class="detail-grid">
+            <div class="label">试卷ID</div>
+            <div class="value" id="paperIdText"></div>
+
+            <div class="label">试卷名称</div>
+            <div class="value" id="paperName"></div>
+
+            <div class="label">总分</div>
+            <div class="value" id="totalScore"></div>
+
+            <div class="label">及格分</div>
+            <div class="value" id="passScore"></div>
+
+            <div class="label">考试时长</div>
+            <div class="value" id="duration"></div>
+
+            <div class="label">组卷方式</div>
+            <div class="value" id="paperType"></div>
+
+            <div class="label">创建人ID</div>
+            <div class="value" id="createUser"></div>
+
+            <div class="label">创建人</div>
+            <div class="value" id="createUserName"></div>
+
+            <div class="label">创建时间</div>
+            <div class="value" id="createTime"></div>
+
+            <div class="label">当前状态</div>
+            <div class="value" id="status"></div>
+
+            <div class="label">审核人ID</div>
+            <div class="value" id="auditUser"></div>
+
+            <div class="label">审核时间</div>
+            <div class="value" id="auditTime"></div>
+
+            <div class="label">驳回原因</div>
+            <div class="value" id="rejectReasonText"></div>
+        </div>
+
+        <div class="reject-box" id="rejectBox">
+            <label>驳回原因</label>
+            <textarea class="input" id="rejectReason" rows="3"
+                      placeholder="请输入驳回原因，例如：题目数量偏少、分值设置不合理、难度分布不均等"></textarea>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="approvePaper()">审核通过</button>
+            <button class="btn btn-danger" onclick="showRejectBox()">驳回试卷</button>
+            <button class="btn btn-primary" id="confirmRejectBtn" onclick="rejectPaper()" style="display:none;">确认驳回</button>
+            <button class="btn btn-gray" onclick="goBack()">返回列表</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="title">试卷题目列表</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 70px;">序号</th>
+                <th>题目内容</th>
+                <th style="width: 90px;">题型</th>
+                <th style="width: 100px;">课程</th>
+                <th style="width: 70px;">难度</th>
+                <th style="width: 90px;">分值</th>
+                <th style="width: 120px;">正确答案</th>
+            </tr>
+            </thead>
+            <tbody id="questionTableBody">
+            <tr>
+                <td colspan="7">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let paperId = null;
+    let paperData = null;
+    let userList = [];
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "ADMIN") {
+            alert("当前账号没有试卷审核权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+
+    function goBack() {
+        window.location.href = "paper-review.html";
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "";
+        }
+
+        return String(value).replace("T", " ").substring(0, 19);
+    }
+
+    function getPaperTypeText(type) {
+        switch (type) {
+            case "MANUAL":
+                return "手动组卷";
+            case "RANDOM":
+                return "随机组卷";
+            default:
+                return type || "";
+        }
+    }
+
+    function getQuestionTypeText(type) {
+        switch (type) {
+            case "single":
+                return "单选题";
+            case "multiple":
+                return "多选题";
+            case "judge":
+                return "判断题";
+            default:
+                return type || "未知";
+        }
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "PENDING":
+                return `<span class="status-pending">待审核</span>`;
+            case "APPROVED":
+                return `<span class="status-approved">已通过</span>`;
+            case "REJECTED":
+                return `<span class="status-rejected">已驳回</span>`;
+            default:
+                return status || "";
+        }
+    }
+
+    async function loadUserList() {
+        try {
+            const result = await get("/user/list");
+
+            if (result.code === 200) {
+                userList = result.data || [];
+            }
+        } catch (error) {
+            console.error("加载用户列表失败：", error);
+            userList = [];
+        }
+    }
+
+    function getUserNameById(userId) {
+        const user = userList.find(item => Number(item.id) === Number(userId));
+
+        if (!user) {
+            return "未知用户";
+        }
+
+        return (user.realName || user.username || "未命名用户") + (user.username ? "（" + user.username + "）" : "");
+    }
+
+    function renderPaperDetail(paper) {
+        document.getElementById("paperIdText").textContent = paper.id ?? "";
+        document.getElementById("paperName").textContent = paper.paperName || "";
+        document.getElementById("totalScore").textContent = paper.totalScore ?? "";
+        document.getElementById("passScore").textContent = paper.passScore ?? "";
+        document.getElementById("duration").textContent = paper.duration ? paper.duration + " 分钟" : "";
+        document.getElementById("paperType").textContent = getPaperTypeText(paper.paperType);
+        document.getElementById("createUser").textContent = paper.createUser ?? "";
+        document.getElementById("createUserName").textContent = getUserNameById(paper.createUser);
+        document.getElementById("createTime").textContent = formatTime(paper.createTime);
+        document.getElementById("status").innerHTML = getStatusText(paper.status);
+        document.getElementById("auditUser").textContent = paper.auditUser ?? "";
+        document.getElementById("auditTime").textContent = formatTime(paper.auditTime);
+        document.getElementById("rejectReasonText").textContent = paper.rejectReason || "无";
+    }
+
+    function renderQuestionList(questionList) {
+        const tbody = document.getElementById("questionTableBody");
+
+        if (!questionList || questionList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7">该试卷暂无题目</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = questionList.map((q, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td class="question-text">${q.questionText || ""}</td>
+                <td>${getQuestionTypeText(q.questionType)}</td>
+                <td>${q.course || ""}</td>
+                <td>${q.difficulty ?? ""}</td>
+                <td>${q.score ?? ""}</td>
+                <td>${q.correctAnswer || ""}</td>
+            </tr>
+        `).join("");
+    }
+
+    async function loadPaperDetail() {
+        try {
+            const result = await get("/paper/" + paperId);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "试卷加载失败");
+                return;
+            }
+
+            paperData = result.data;
+
+            if (!paperData) {
+                showMessage("试卷不存在");
+                return;
+            }
+
+            renderPaperDetail(paperData);
+            renderQuestionList(paperData.questionList || []);
+
+            if (paperData.status !== "PENDING") {
+                showMessage("该试卷当前不是待审核状态，不能继续审核");
+            }
+        } catch (error) {
+            console.error("加载试卷详情失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function approvePaper() {
+        if (!paperData || paperData.status !== "PENDING") {
+            showMessage("只有待审核试卷可以审核通过");
+            return;
+        }
+
+        const ok = confirm("确认审核通过该试卷吗？通过后试卷可以用于创建考试。");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await put("/paper/" + paperId + "/approve?auditUser=" + currentUser.id);
+
+            if (result.code !== 200) {
+                showMessage(result.message || "审核失败");
+                return;
+            }
+
+            showMessage(result.message || "试卷审核通过成功");
+
+            setTimeout(() => {
+                goBack();
+            }, 800);
+        } catch (error) {
+            console.error("试卷审核通过失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    function showRejectBox() {
+        if (!paperData || paperData.status !== "PENDING") {
+            showMessage("只有待审核试卷可以驳回");
+            return;
+        }
+
+        document.getElementById("rejectBox").style.display = "block";
+        document.getElementById("confirmRejectBtn").style.display = "inline-block";
+        document.getElementById("rejectReason").focus();
+    }
+
+    async function rejectPaper() {
+        if (!paperData || paperData.status !== "PENDING") {
+            showMessage("只有待审核试卷可以驳回");
+            return;
+        }
+
+        const rejectReason = document.getElementById("rejectReason").value.trim();
+
+        if (!rejectReason) {
+            showMessage("请输入驳回原因");
+            return;
+        }
+
+        const ok = confirm("确认驳回该试卷吗？");
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            const result = await put("/paper/" + paperId + "/reject", {
+                auditUser: Number(currentUser.id),
+                rejectReason: rejectReason
+            });
+
+            if (result.code !== 200) {
+                showMessage(result.message || "驳回失败");
+                return;
+            }
+
+            showMessage(result.message || "试卷已驳回");
+
+            setTimeout(() => {
+                goBack();
+            }, 800);
+        } catch (error) {
+            console.error("驳回试卷失败：", error);
+            showMessage("无法连接后端，请检查服务是否启动");
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（管理员）";
+
+        paperId = getQueryParam("id");
+
+        if (!paperId) {
+            showMessage("缺少试卷ID");
+            return;
+        }
+
+        await loadUserList();
+        await loadPaperDetail();
+    }
+
+    initPage();
+</script>
+</body>
+</html>

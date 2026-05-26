@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的试卷 - 在线考试系统</title>
+
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/config.js"></script>
+    <script src="js/common.js"></script>
+
+    <style>
+        .user-box {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .toolbar .input {
+            width: 240px;
+        }
+
+        .tip-box {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #237804;
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            line-height: 1.8;
+            font-size: 14px;
+        }
+
+        .status-pending {
+            color: #d48806;
+            font-weight: bold;
+        }
+
+        .status-rejected {
+            color: #cf1322;
+            font-weight: bold;
+        }
+
+        .reject-reason {
+            color: #cf1322;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 900px) {
+            .toolbar .input {
+                width: 100%;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="header">
+    <div class="title">我的试卷</div>
+    <div class="user-box">
+        <span id="userText">未登录</span>
+        <button class="btn btn-danger" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <div class="title">试卷提交记录</div>
+
+        <div class="tip-box">
+            这里仅展示你自己创建的待审核试卷和被驳回试卷。审核通过后的试卷会进入正式试卷管理页面，并可用于考试发布。
+        </div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="goAddPaper()">新增试卷</button>
+            <button class="btn btn-primary" onclick="goRandomPaper()">随机组卷</button>
+            <button class="btn btn-gray" onclick="loadMyPaperList()">刷新列表</button>
+            <button class="btn btn-gray" onclick="goFormalPaper()">正式试卷</button>
+            <button class="btn btn-gray" onclick="goHome()">返回首页</button>
+        </div>
+
+        <div class="toolbar">
+            <input class="input" id="searchPaperName" placeholder="请输入试卷名称关键字">
+
+            <select class="input" id="searchStatus">
+                <option value="">全部状态</option>
+                <option value="PENDING">待审核</option>
+                <option value="REJECTED">已驳回</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="loadMyPaperList()">筛选</button>
+            <button class="btn btn-gray" onclick="clearSearch()">清空</button>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">我的待审核 / 被驳回试卷</div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th style="width: 70px;">ID</th>
+                <th>试卷名称</th>
+                <th style="width: 80px;">总分</th>
+                <th style="width: 80px;">及格分</th>
+                <th style="width: 90px;">时长</th>
+                <th style="width: 100px;">组卷方式</th>
+                <th style="width: 90px;">状态</th>
+                <th style="width: 180px;">驳回原因</th>
+                <th style="width: 160px;">创建时间</th>
+                <th style="width: 170px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="paperTableBody">
+            <tr>
+                <td colspan="10">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+
+    function checkLogin() {
+        const user = getUser();
+
+        if (!user) {
+            return null;
+        }
+
+        if (user.role !== "TEACHER") {
+            alert("当前账号没有访问我的试卷的权限");
+            window.location.href = "login.html";
+            return null;
+        }
+
+        return user;
+    }
+
+    function showMessage(msg) {
+        document.getElementById("message").textContent = msg || "";
+    }
+
+    function goAddPaper() {
+        window.location.href = "paper-edit.html";
+    }
+
+    function goRandomPaper() {
+        window.location.href = "paper-random.html";
+    }
+
+    function goFormalPaper() {
+        window.location.href = "paper-manage.html";
+    }
+
+    function goEditPaper(id) {
+        window.location.href = "paper-edit.html?id=" + id;
+    }
+
+    function goPaperDetail(id) {
+        window.location.href = "paper-detail.html?id=" + id;
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "";
+        }
+
+        return String(value).replace("T", " ").substring(0, 19);
+    }
+
+    function getPaperTypeText(type) {
+        switch (type) {
+            case "MANUAL":
+                return "手动组卷";
+            case "RANDOM":
+                return "随机组卷";
+            default:
+                return type || "";
+        }
+    }
+
+    function getStatusText(status) {
+        switch (status) {
+            case "PENDING":
+                return `<span class="status-pending">待审核</span>`;
+            case "REJECTED":
+                return `<span class="status-rejected">已驳回</span>`;
+            default:
+                return status || "";
+        }
+    }
+
+    function clearSearch() {
+        document.getElementById("searchPaperName").value = "";
+        document.getElementById("searchStatus").value = "";
+        loadMyPaperList();
+    }
+
+    async function loadMyPaperList() {
+        const tbody = document.getElementById("paperTableBody");
+        tbody.innerHTML = `<tr><td colspan="10">加载中...</td></tr>`;
+        showMessage("");
+
+        const paperName = document.getElementById("searchPaperName").value.trim();
+        const status = document.getElementById("searchStatus").value;
+
+        const params = new URLSearchParams();
+        params.append("pageNum", "1");
+        params.append("pageSize", "1000");
+        params.append("createUser", currentUser.id);
+
+        if (status) params.append("status", status);
+        if (paperName) params.append("paperName", paperName);
+
+        try {
+            const result = await get("/paper/my/page?" + params.toString());
+
+            if (result.code !== 200) {
+                tbody.innerHTML = `<tr><td colspan="10">${result.message || "查询失败"}</td></tr>`;
+                return;
+            }
+
+            const list = result.data?.records || [];
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10">暂无待审核或被驳回试卷</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(paper => {
+                const reasonHtml = paper.rejectReason
+                    ? `<div class="reject-reason">${paper.rejectReason}</div>`
+                    : `<span style="color:#999;">无</span>`;
+
+                const actionHtml = paper.status === "REJECTED"
+                    ? `
+                        <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">修改并重新提交</button>
+                        <button class="btn btn-gray" onclick="goPaperDetail(${paper.id})">查看详情</button>
+                    `
+                    : `
+                        <span style="color:#999;">等待审核</span>
+                        <button class="btn btn-gray" onclick="goPaperDetail(${paper.id})">查看详情</button>
+                    `;
+
+                return `
+                    <tr>
+                        <td>${paper.id ?? ""}</td>
+                        <td style="text-align:left;">${paper.paperName || ""}</td>
+                        <td>${paper.totalScore ?? ""}</td>
+                        <td>${paper.passScore ?? ""}</td>
+                        <td>${paper.duration ?? ""} 分钟</td>
+                        <td>${getPaperTypeText(paper.paperType)}</td>
+                        <td>${getStatusText(paper.status)}</td>
+                        <td>${reasonHtml}</td>
+                        <td>${formatTime(paper.createTime)}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            }).join("");
+        } catch (error) {
+            console.error("加载我的试卷失败：", error);
+            tbody.innerHTML = `<tr><td colspan="10">无法连接后端</td></tr>`;
+        }
+    }
+
+    async function initPage() {
+        currentUser = checkLogin();
+
+        if (!currentUser) {
+            return;
+        }
+
+        document.getElementById("userText").textContent =
+            "当前用户：" + (currentUser.realName || currentUser.username || "") + "（教师）";
+
+        await loadMyPaperList();
+    }
+
+    initPage();
+</script>
+
+</body>
+</html>

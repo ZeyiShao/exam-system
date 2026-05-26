@@ -8,6 +8,7 @@ import com.example.examsystem.vo.PaperDetailVO;
 import org.springframework.web.bind.annotation.*;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.examsystem.vo.PaperRandomAddVO;
+import com.example.examsystem.dto.PaperRejectDTO;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class PaperController {
     @PostMapping
     public Result<Void> add(@RequestBody PaperAddVO paperAddVO) {
         paperService.add(paperAddVO);
-        return Result.success("新增试卷成功", null);
+        return Result.success("试卷创建成功，等待管理员审核", null);
     }
 
     @GetMapping("/{id}")
@@ -62,6 +63,42 @@ public class PaperController {
     @PostMapping("/random")
     public Result<Void> randomAdd(@RequestBody PaperRandomAddVO randomAddVO) {
         paperService.randomAdd(randomAddVO);
-        return Result.success("随机组卷成功", null);
+        return Result.success("随机组卷成功，等待管理员审核", null);
+    }
+
+    @GetMapping("/review/page")
+    public Result<IPage<Paper>> reviewPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam(required = false) String paperName) {
+
+        return Result.success("查询成功",
+                paperService.reviewPage(pageNum, pageSize, paperName));
+    }
+
+    @GetMapping("/my/page")
+    public Result<IPage<Paper>> myPage(
+            @RequestParam Integer pageNum,
+            @RequestParam Integer pageSize,
+            @RequestParam Integer createUser,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String paperName) {
+
+        return Result.success("查询成功",
+                paperService.myPage(pageNum, pageSize, createUser, status, paperName));
+    }
+
+    @PutMapping("/{id}/approve")
+    public Result<Void> approve(@PathVariable Integer id,
+                                @RequestParam Long auditUser) {
+        paperService.approve(id, auditUser);
+        return Result.success("试卷审核通过成功", null);
+    }
+
+    @PutMapping("/{id}/reject")
+    public Result<Void> reject(@PathVariable Integer id,
+                               @RequestBody PaperRejectDTO dto) {
+        paperService.reject(id, dto.getAuditUser(), dto.getRejectReason());
+        return Result.success("试卷已驳回", null);
     }
 }

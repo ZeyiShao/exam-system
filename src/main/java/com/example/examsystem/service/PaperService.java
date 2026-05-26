@@ -23,4 +23,18 @@ public interface PaperService {
     void update(PaperAddVO paperAddVO);
 
     void randomAdd(PaperRandomAddVO randomAddVO);
+
+    IPage<Paper> reviewPage(Integer pageNum,
+                            Integer pageSize,
+                            String paperName);
+
+    IPage<Paper> myPage(Integer pageNum,
+                        Integer pageSize,
+                        Integer createUser,
+                        String status,
+                        String paperName);
+
+    void approve(Integer id, Long auditUser);
+
+    void reject(Integer id, Long auditUser, String rejectReason);
 }

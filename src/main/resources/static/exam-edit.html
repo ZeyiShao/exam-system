@@ -77,6 +77,7 @@
 
         <div class="tip-box">
             教师只能为自己负责的班级和课程创建考试。请选择授课关系后，系统会自动确定班级、课程和教师信息。
+            考试只能关联审核通过的试卷，待审核或已驳回试卷不能用于创建考试。
         </div>
 
         <input type="hidden" id="examId">
@@ -194,10 +195,15 @@
     function renderPaperOptions() {
         const select = document.getElementById("paperId");
 
+        if (!paperList || paperList.length === 0) {
+            select.innerHTML = `<option value="">暂无审核通过试卷</option>`;
+            return;
+        }
+
         select.innerHTML = `<option value="">请选择试卷</option>` +
             paperList.map(paper => `
                 <option value="${paper.id}">
-                    ${paper.paperName}（ID：${paper.id}，总分：${paper.totalScore ?? ""}）
+                    ${paper.paperName}（ID：${paper.id}，总分：${paper.totalScore ?? ""}，已通过）
                 </option>
             `).join("");
     }
@@ -237,7 +243,11 @@
             const paperRes = await get("/paper/list");
 
             if (paperRes.code === 200) {
-                paperList = paperRes.data || [];
+                paperList = (paperRes.data || []).filter(paper => paper.status === "APPROVED");
+
+                if (paperList.length === 0) {
+                    showMessage("当前没有可用于考试的审核通过试卷，请先完成试卷审核");
+                }
             }
 
             let relationRes;
@@ -320,6 +330,18 @@
             showMessage("请选择试卷");
             return null;
         }
+
+        const selectedPaper = paperList.find(item => Number(item.id) === Number(paperId));
+
+    if (!selectedPaper) {
+        showMessage("所选试卷不存在或未通过审核，不能用于考试");
+        return null;
+    }
+
+    if (selectedPaper.status && selectedPaper.status !== "APPROVED") {
+        showMessage("只有审核通过的试卷才能用于考试");
+        return null;
+    }
 
         if (!relation) {
             showMessage("请选择授课关系");

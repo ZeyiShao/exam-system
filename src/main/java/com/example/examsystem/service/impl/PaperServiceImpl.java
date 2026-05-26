@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -31,6 +32,11 @@ import java.util.Set;
 public class PaperServiceImpl implements PaperService {
 
     private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_REJECTED = "REJECTED";
+
+    private static final String PAPER_TYPE_MANUAL = "MANUAL";
+    private static final String PAPER_TYPE_RANDOM = "RANDOM";
 
     private final PaperMapper paperMapper;
     private final PaperQuestionMapper paperQuestionMapper;
@@ -56,6 +62,12 @@ public class PaperServiceImpl implements PaperService {
         paper.setPassScore(paperAddVO.getPassScore());
         paper.setCreateUser(paperAddVO.getCreateUser());
 
+        paper.setStatus(STATUS_PENDING);
+        paper.setAuditUser(null);
+        paper.setAuditTime(null);
+        paper.setRejectReason(null);
+        paper.setPaperType(PAPER_TYPE_MANUAL);
+
         paperMapper.insert(paper);
 
         saveManualPaperQuestions(paper.getId(), paperAddVO.getQuestionList());
@@ -66,6 +78,15 @@ public class PaperServiceImpl implements PaperService {
     public void update(PaperAddVO paperAddVO) {
         validateManualPaper(paperAddVO, true);
 
+        Paper oldPaper = paperMapper.selectById(paperAddVO.getId());
+        if (oldPaper == null) {
+            throw new BusinessException("试卷不存在");
+        }
+
+        if (STATUS_APPROVED.equals(oldPaper.getStatus())) {
+            throw new BusinessException("已通过审核的试卷不能直接修改，请重新新增试卷");
+        }
+
         Paper paper = new Paper();
         paper.setId(paperAddVO.getId());
         paper.setPaperName(paperAddVO.getPaperName().trim());
@@ -73,6 +94,19 @@ public class PaperServiceImpl implements PaperService {
         paper.setDuration(paperAddVO.getDuration());
         paper.setPassScore(paperAddVO.getPassScore());
         paper.setCreateUser(paperAddVO.getCreateUser());
+
+        if (STATUS_REJECTED.equals(oldPaper.getStatus()) || STATUS_PENDING.equals(oldPaper.getStatus())) {
+            paper.setStatus(STATUS_PENDING);
+            paper.setAuditUser(null);
+            paper.setAuditTime(null);
+            paper.setRejectReason(null);
+        }
+
+        if (oldPaper.getPaperType() != null) {
+            paper.setPaperType(oldPaper.getPaperType());
+        } else {
+            paper.setPaperType(PAPER_TYPE_MANUAL);
+        }
 
         paperMapper.updateById(paper);
 
@@ -155,6 +189,7 @@ public class PaperServiceImpl implements PaperService {
     @Override
     public List<Paper> list() {
         LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Paper::getStatus, STATUS_APPROVED);
         wrapper.orderByDesc(Paper::getId);
         return paperMapper.selectList(wrapper);
     }
@@ -164,12 +199,128 @@ public class PaperServiceImpl implements PaperService {
         Page<Paper> page = new Page<>(pageNum, pageSize);
 
         LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Paper::getStatus, STATUS_APPROVED);
+
         if (StringUtils.hasText(paperName)) {
             wrapper.like(Paper::getPaperName, paperName);
         }
+
         wrapper.orderByDesc(Paper::getId);
 
         return paperMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public IPage<Paper> reviewPage(Integer pageNum,
+                                   Integer pageSize,
+                                   String paperName) {
+        Page<Paper> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Paper::getStatus, STATUS_PENDING);
+
+        if (StringUtils.hasText(paperName)) {
+            wrapper.like(Paper::getPaperName, paperName);
+        }
+
+        wrapper.orderByDesc(Paper::getId);
+
+        return paperMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public IPage<Paper> myPage(Integer pageNum,
+                               Integer pageSize,
+                               Integer createUser,
+                               String status,
+                               String paperName) {
+        if (createUser == null) {
+            throw new BusinessException("创建人ID不能为空");
+        }
+
+        Page<Paper> page = new Page<>(pageNum, pageSize);
+
+        LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Paper::getCreateUser, createUser);
+
+        if (StringUtils.hasText(status)) {
+            if (!STATUS_PENDING.equals(status) && !STATUS_REJECTED.equals(status)) {
+                throw new BusinessException("我的试卷只能查询待审核或已驳回状态");
+            }
+            wrapper.eq(Paper::getStatus, status);
+        } else {
+            wrapper.in(Paper::getStatus, STATUS_PENDING, STATUS_REJECTED);
+        }
+
+        if (StringUtils.hasText(paperName)) {
+            wrapper.like(Paper::getPaperName, paperName);
+        }
+
+        wrapper.orderByDesc(Paper::getId);
+
+        return paperMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    public void approve(Integer id, Long auditUser) {
+        if (id == null) {
+            throw new BusinessException("试卷ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        Paper paper = paperMapper.selectById(id);
+        if (paper == null) {
+            throw new BusinessException("试卷不存在");
+        }
+
+        if (!STATUS_PENDING.equals(paper.getStatus())) {
+            throw new BusinessException("只有待审核试卷可以审核通过");
+        }
+
+        Paper updatePaper = new Paper();
+        updatePaper.setId(id);
+        updatePaper.setStatus(STATUS_APPROVED);
+        updatePaper.setAuditUser(auditUser);
+        updatePaper.setAuditTime(LocalDateTime.now());
+        updatePaper.setRejectReason(null);
+
+        paperMapper.updateById(updatePaper);
+    }
+
+    @Override
+    public void reject(Integer id, Long auditUser, String rejectReason) {
+        if (id == null) {
+            throw new BusinessException("试卷ID不能为空");
+        }
+
+        if (auditUser == null) {
+            throw new BusinessException("审核人不能为空");
+        }
+
+        if (!StringUtils.hasText(rejectReason)) {
+            throw new BusinessException("驳回原因不能为空");
+        }
+
+        Paper paper = paperMapper.selectById(id);
+        if (paper == null) {
+            throw new BusinessException("试卷不存在");
+        }
+
+        if (!STATUS_PENDING.equals(paper.getStatus())) {
+            throw new BusinessException("只有待审核试卷可以驳回");
+        }
+
+        Paper updatePaper = new Paper();
+        updatePaper.setId(id);
+        updatePaper.setStatus(STATUS_REJECTED);
+        updatePaper.setAuditUser(auditUser);
+        updatePaper.setAuditTime(LocalDateTime.now());
+        updatePaper.setRejectReason(rejectReason.trim());
+
+        paperMapper.updateById(updatePaper);
     }
 
     @Override
@@ -208,6 +359,12 @@ public class PaperServiceImpl implements PaperService {
         paper.setPassScore(randomAddVO.getPassScore());
         paper.setCreateUser(randomAddVO.getCreateUser());
         paper.setTotalScore(totalScore);
+
+        paper.setStatus(STATUS_PENDING);
+        paper.setAuditUser(null);
+        paper.setAuditTime(null);
+        paper.setRejectReason(null);
+        paper.setPaperType(PAPER_TYPE_RANDOM);
 
         paperMapper.insert(paper);
 

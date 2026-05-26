@@ -38,6 +38,7 @@ import java.util.Set;
 @Service
 public class ExamServiceImpl implements ExamService {
 
+    private static final String PAPER_STATUS_APPROVED = "APPROVED";
     private final ExamMapper examMapper;
     private final PaperMapper paperMapper;
     private final ClassInfoMapper classInfoMapper;
@@ -185,6 +186,10 @@ public class ExamServiceImpl implements ExamService {
         Paper paper = paperMapper.selectById(exam.getPaperId());
         if (paper == null) {
             throw new BusinessException("试卷不存在");
+        }
+
+        if (!PAPER_STATUS_APPROVED.equals(paper.getStatus())) {
+            throw new BusinessException("只有审核通过的试卷才能用于创建考试");
         }
 
         ClassInfo classInfo = classInfoMapper.selectById(exam.getClassId());

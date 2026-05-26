@@ -133,9 +133,9 @@
 <div class="container">
     <div class="card">
         <div class="actions">
-            <button class="btn btn-gray" onclick="goBack()">返回试卷管理</button>
+            <button class="btn btn-gray" onclick="goBack()">返回</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
-            <button class="btn btn-primary" id="editBtn" onclick="goEdit()">编辑试卷</button>
+            <button class="btn btn-primary" id="editBtn" style="display:none;" onclick="goEdit()">编辑试卷</button>
         </div>
         <div id="message" class="message"></div>
     </div>
@@ -200,13 +200,61 @@
         }
     }
 
+    function canEditPaper() {
+        if (!currentUser || !paperDetail) {
+            return false;
+        }
+
+        // 管理员可以直接编辑试卷
+        if (currentUser.role === "ADMIN") {
+            return true;
+        }
+
+        // 教师只能编辑自己被驳回的试卷
+        if (
+            currentUser.role === "TEACHER" &&
+            paperDetail.status === "REJECTED" &&
+            Number(paperDetail.createUser) === Number(currentUser.id)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function updateEditButtonVisible() {
+        const editBtn = document.getElementById("editBtn");
+
+        if (!editBtn) {
+            return;
+        }
+
+        editBtn.style.display = canEditPaper() ? "inline-block" : "none";
+    }
+
     function goBack() {
+        if (
+            currentUser &&
+            currentUser.role === "TEACHER" &&
+            paperDetail &&
+            Number(paperDetail.createUser) === Number(currentUser.id) &&
+            (paperDetail.status === "PENDING" || paperDetail.status === "REJECTED")
+        ) {
+            window.location.href = "my-paper.html";
+            return;
+        }
+
         window.location.href = "paper-manage.html";
     }
 
     function goEdit() {
         if (!paperId) {
             showMessage("缺少试卷ID，无法编辑");
+            return;
+        }
+
+        if (!canEditPaper()) {
+            showMessage("当前试卷不允许编辑");
             return;
         }
 

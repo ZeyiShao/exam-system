@@ -105,6 +105,10 @@
     <div class="card">
         <div class="title">试卷操作</div>
 
+        <div style="color:#666;font-size:14px;margin-bottom:12px;">
+            教师可查看已审核通过的正式试卷；管理员可对正式试卷进行编辑和删除。
+        </div>
+
         <div class="top-actions">
             <button class="btn btn-primary" onclick="window.location.href='paper-edit.html'">新增试卷</button>
             <button class="btn btn-primary" onclick="goRandomPaper()">随机组卷</button>
@@ -245,6 +249,20 @@
         window.location.href = "paper-detail.html?id=" + id;
     }
 
+    function renderActionButtons(paper) {
+    if (currentUser && currentUser.role === "ADMIN") {
+        return `
+            <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
+            <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">编辑</button>
+            <button class="btn btn-danger" onclick="deletePaper(${paper.id})">删除</button>
+        `;
+    }
+
+    return `
+        <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
+    `;
+}
+
     function buildPageParams() {
         const paperName = document.getElementById("searchPaperName").value.trim();
 
@@ -303,9 +321,7 @@
                 <td>${formatTime(paper.createTime)}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="goDetailPaper(${paper.id})">详情</button>
-                        <button class="btn btn-primary" onclick="goEditPaper(${paper.id})">编辑</button>
-                        <button class="btn btn-danger" onclick="deletePaper(${paper.id})">删除</button>
+                        ${renderActionButtons(paper)}
                     </div>
                 </td>
             </tr>

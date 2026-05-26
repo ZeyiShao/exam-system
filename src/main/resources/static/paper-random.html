@@ -426,7 +426,11 @@
             }
 
             alert(result.message || "随机组卷成功");
+            if (currentUser && currentUser.role === "TEACHER") {
+            window.location.href = "my-paper.html";
+        } else {
             window.location.href = "paper-manage.html";
+        }
         } catch (error) {
             console.error("随机组卷失败：", error);
             showMessage("无法连接后端，请检查服务是否启动");

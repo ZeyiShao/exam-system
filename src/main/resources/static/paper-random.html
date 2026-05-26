@@ -210,7 +210,7 @@
         <div class="actions">
             <button class="btn btn-primary" onclick="createRandomPaper()">生成试卷</button>
             <button class="btn btn-gray" onclick="resetForm()">重置</button>
-            <button class="btn btn-gray" onclick="window.location.href='paper-manage.html'">返回试卷管理</button>
+            <button class="btn btn-gray" id="backBtn" onclick="goBack()">返回</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
         </div>
     </div>
@@ -238,6 +238,15 @@
 
     function showMessage(msg) {
         document.getElementById("message").textContent = msg || "";
+    }
+
+    function goBack() {
+        if (currentUser && currentUser.role === "TEACHER") {
+            window.location.href = "my-paper.html";
+            return;
+        }
+
+        window.location.href = "paper-manage.html";
     }
 
     async function loadCourseList() {
@@ -427,10 +436,10 @@
 
             alert(result.message || "随机组卷成功");
             if (currentUser && currentUser.role === "TEACHER") {
-            window.location.href = "my-paper.html";
-        } else {
-            window.location.href = "paper-manage.html";
-        }
+                window.location.href = "my-paper.html";
+            } else {
+                window.location.href = "paper-manage.html";
+            }
         } catch (error) {
             console.error("随机组卷失败：", error);
             showMessage("无法连接后端，请检查服务是否启动");
@@ -468,6 +477,11 @@
 
         document.getElementById("createUserText").value =
             currentUser.realName + "（ID：" + currentUser.id + "）";
+
+        const backBtn = document.getElementById("backBtn");
+        if (backBtn) {
+            backBtn.textContent = currentUser.role === "TEACHER" ? "返回我的试卷" : "返回试卷管理";
+        }
 
         await loadCourseList();
         calculateSummary();

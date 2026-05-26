@@ -193,7 +193,7 @@
         <div class="card">
             <div class="title">试卷基本信息</div>
 
-            <div class="summary-box">
+            <div class="summary-box" id="paperTip">
                 教师创建或修改试卷后，试卷会进入待审核状态。管理员审核通过后，试卷才能用于考试发布。
                 被驳回的试卷可以修改后重新提交审核。
             </div>
@@ -277,8 +277,8 @@
 
     <div class="card">
         <div class="actions">
-            <button class="btn btn-primary" onclick="savePaper()">提交审核</button>
-            <button class="btn btn-gray" onclick="goBack()">返回我的试卷</button>
+            <button class="btn btn-primary" id="saveBtn" onclick="savePaper()">提交审核</button>
+            <button class="btn btn-gray" id="backBtn" onclick="goBack()">返回</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
         </div>
     </div>
@@ -473,7 +473,11 @@
                 }
             }
 
-            document.getElementById("pageTitle").textContent = "修改并重新提交试卷";
+            if (currentUser.role === "ADMIN") {
+                document.getElementById("pageTitle").textContent = "编辑试卷";
+            } else {
+                document.getElementById("pageTitle").textContent = "修改并重新提交试卷";
+            }
             document.getElementById("paperId").value = paper.id;
             document.getElementById("paperName").value = paper.paperName || "";
             document.getElementById("totalScore").value = paper.totalScore || "";
@@ -772,7 +776,9 @@
             totalScore: Number(totalScore),
             duration: Number(duration),
             passScore: Number(passScore),
-            createUser: Number(currentUser.id),
+            createUser: currentPaper && currentPaper.createUser
+                ? Number(currentPaper.createUser)
+                : Number(currentUser.id),
             questionList: questionList
         };
 
@@ -823,6 +829,21 @@
 
         document.getElementById("userText").textContent =
             "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        const backBtn = document.getElementById("backBtn");
+        if (backBtn) {
+            backBtn.textContent = currentUser.role === "TEACHER" ? "返回我的试卷" : "返回试卷管理";
+        }
+
+        const paperTip = document.getElementById("paperTip");
+        if (paperTip && currentUser.role === "ADMIN") {
+            paperTip.textContent = "管理员可以直接维护正式试卷信息；教师提交的试卷仍需审核通过后才能用于考试发布。";
+        }
+
+        const saveBtn = document.getElementById("saveBtn");
+        if (saveBtn) {
+            saveBtn.textContent = currentUser.role === "ADMIN" ? "保存修改" : "提交审核";
+        }
 
         paperId = getIdFromUrl();
 

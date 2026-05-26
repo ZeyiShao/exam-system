@@ -285,6 +285,7 @@
 
             renderPaperInfo();
             renderQuestionList();
+            updateEditButtonVisible();
         } catch (error) {
             console.error("加载试卷详情失败：", error);
             infoEl.innerHTML = "";

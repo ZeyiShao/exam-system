@@ -798,9 +798,15 @@
         }
 
         try {
-            const result = data.id
-                ? await put("/paper", data)
-                : await post("/paper", data);
+            let result;
+
+            if (data.id && currentUser.role === "ADMIN") {
+                result = await put("/paper/admin", data);
+            } else if (data.id) {
+                result = await put("/paper", data);
+            } else {
+                result = await post("/paper", data);
+            }
 
             if (result.code !== 200) {
                 showMessage(result.message || "保存失败");

@@ -60,6 +60,12 @@ public class PaperController {
         return Result.success("修改成功", null);
     }
 
+    @PutMapping("/admin")
+    public Result<Void> adminUpdate(@RequestBody PaperAddVO paperAddVO) {
+        paperService.adminUpdate(paperAddVO);
+        return Result.success("试卷修改成功", null);
+    }
+
     @PostMapping("/random")
     public Result<Void> randomAdd(@RequestBody PaperRandomAddVO randomAddVO) {
         paperService.randomAdd(randomAddVO);

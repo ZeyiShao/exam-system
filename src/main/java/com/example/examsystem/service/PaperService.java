@@ -37,4 +37,6 @@ public interface PaperService {
     void approve(Integer id, Long auditUser);
 
     void reject(Integer id, Long auditUser, String rejectReason);
+
+    void adminUpdate(PaperAddVO paperAddVO);
 }

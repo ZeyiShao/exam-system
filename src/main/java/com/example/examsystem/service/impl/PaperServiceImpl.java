@@ -84,7 +84,7 @@ public class PaperServiceImpl implements PaperService {
         }
 
         if (STATUS_APPROVED.equals(oldPaper.getStatus())) {
-            throw new BusinessException("已通过审核的试卷不能直接修改，请重新新增试卷");
+            throw new BusinessException("已通过审核的试卷不能通过教师重新提交接口修改");
         }
 
         Paper paper = new Paper();
@@ -101,6 +101,47 @@ public class PaperServiceImpl implements PaperService {
             paper.setAuditTime(null);
             paper.setRejectReason(null);
         }
+
+        if (oldPaper.getPaperType() != null) {
+            paper.setPaperType(oldPaper.getPaperType());
+        } else {
+            paper.setPaperType(PAPER_TYPE_MANUAL);
+        }
+
+        paperMapper.updateById(paper);
+
+        LambdaQueryWrapper<PaperQuestion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PaperQuestion::getPaperId, paperAddVO.getId());
+        paperQuestionMapper.delete(wrapper);
+
+        saveManualPaperQuestions(paperAddVO.getId(), paperAddVO.getQuestionList());
+    }
+
+    @Override
+    @Transactional
+    public void adminUpdate(PaperAddVO paperAddVO) {
+        validateManualPaper(paperAddVO, true);
+
+        Paper oldPaper = paperMapper.selectById(paperAddVO.getId());
+        if (oldPaper == null) {
+            throw new BusinessException("试卷不存在");
+        }
+
+        Paper paper = new Paper();
+        paper.setId(paperAddVO.getId());
+        paper.setPaperName(paperAddVO.getPaperName().trim());
+        paper.setTotalScore(paperAddVO.getTotalScore());
+        paper.setDuration(paperAddVO.getDuration());
+        paper.setPassScore(paperAddVO.getPassScore());
+
+        // 管理员修改时保留原创建人，避免创建人变成管理员
+        paper.setCreateUser(oldPaper.getCreateUser());
+
+        // 管理员维护正式试卷时，保留原审核状态
+        paper.setStatus(oldPaper.getStatus());
+        paper.setAuditUser(oldPaper.getAuditUser());
+        paper.setAuditTime(oldPaper.getAuditTime());
+        paper.setRejectReason(oldPaper.getRejectReason());
 
         if (oldPaper.getPaperType() != null) {
             paper.setPaperType(oldPaper.getPaperType());

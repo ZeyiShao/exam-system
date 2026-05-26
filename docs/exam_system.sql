@@ -11,7 +11,7 @@
  Target Server Version : 80045 (8.0.45)
  File Encoding         : 65001
 
- Date: 01/05/2026 09:40:26
+ Date: 26/05/2026 17:54:47
 */
 
 SET NAMES utf8mb4;
@@ -27,12 +27,13 @@ CREATE TABLE `class_course_teacher`  (
   `course_id` int NOT NULL COMMENT '课程ID',
   `teacher_id` bigint NOT NULL COMMENT '教师ID',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级-课程-教师关系表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级-课程-教师关系表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of class_course_teacher
 -- ----------------------------
 INSERT INTO `class_course_teacher` VALUES (1, 2, 2, 4);
+INSERT INTO `class_course_teacher` VALUES (2, 3, 6, 7);
 
 -- ----------------------------
 -- Table structure for class_info
@@ -46,12 +47,13 @@ CREATE TABLE `class_info`  (
   `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班级说明',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of class_info
 -- ----------------------------
 INSERT INTO `class_info` VALUES (2, '软件工程221班', '2022级', '软件工程', '软件工程专业本科班级', '2026-04-03 16:17:50');
+INSERT INTO `class_info` VALUES (3, '软件工程002班', NULL, NULL, NULL, '2026-05-26 13:16:40');
 
 -- ----------------------------
 -- Table structure for course
@@ -65,12 +67,16 @@ CREATE TABLE `course`  (
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'ENABLED' COMMENT '状态：ENABLED/DISABLED',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课程表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课程表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of course
 -- ----------------------------
-INSERT INTO `course` VALUES (2, 'Java基础（修改）', 'JAVA001', 'Java程序设计基础课程-更新', 'ENABLED', '2026-04-03 15:43:29');
+INSERT INTO `course` VALUES (2, 'Java基础', 'JAVA001', 'Java程序设计基础课程', 'ENABLED', '2026-04-03 15:43:29');
+INSERT INTO `course` VALUES (4, '数据库', 'DB001', '数据库基础课程', 'ENABLED', '2026-05-01 09:44:51');
+INSERT INTO `course` VALUES (5, '数据结构', 'DS001', '数据结构基础课程', 'ENABLED', '2026-05-01 09:44:51');
+INSERT INTO `course` VALUES (6, '计算机网络', 'NET001', '计算机网络基础课程', 'ENABLED', '2026-05-01 09:44:51');
+INSERT INTO `course` VALUES (7, '软件工程', 'SE001', '软件工程基础课程', 'ENABLED', '2026-05-01 09:44:51');
 
 -- ----------------------------
 -- Table structure for exam
@@ -89,13 +95,14 @@ CREATE TABLE `exam`  (
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'NOT_STARTED' COMMENT '状态：NOT_STARTED/ONGOING/FINISHED/CANCELLED',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '考试安排表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '考试安排表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of exam
 -- ----------------------------
 INSERT INTO `exam` VALUES (2, 'Java在线测试', 2, 2, 2, 4, '2026-04-05 00:00:00', '2026-04-05 23:59:59', 90, 'ONGOING', '2026-04-05 10:13:53');
-INSERT INTO `exam` VALUES (3, 'Java在线测试2', 2, 2, 2, 4, '2026-04-21 00:00:00', '2026-04-21 23:59:00', 80, 'ONGOING', '2026-04-20 23:58:16');
+INSERT INTO `exam` VALUES (3, 'Java在线测试2', 2, 2, 2, 4, '2026-05-20 00:00:00', '2026-05-20 23:59:00', 80, 'FINISHED', '2026-04-20 23:58:16');
+INSERT INTO `exam` VALUES (4, 'Java在线测试3', 3, 2, 2, 4, '2026-05-21 16:45:00', '2026-05-21 23:59:00', 80, 'ONGOING', '2026-05-21 16:44:37');
 
 -- ----------------------------
 -- Table structure for exam_answer
@@ -110,7 +117,7 @@ CREATE TABLE `exam_answer`  (
   `is_correct` tinyint(1) NULL DEFAULT 0 COMMENT '是否答对',
   `score` int NULL DEFAULT 0 COMMENT '本题得分',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '答题记录表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 14 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '答题记录表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of exam_answer
@@ -121,6 +128,13 @@ INSERT INTO `exam_answer` VALUES (3, 1, 3, 'A,B,D', 'A,B,D', 1, 20);
 INSERT INTO `exam_answer` VALUES (4, 2, 1, 'B', 'B', 1, 10);
 INSERT INTO `exam_answer` VALUES (5, 2, 2, 'C', 'C', 1, 10);
 INSERT INTO `exam_answer` VALUES (6, 2, 3, 'A,B,D', 'A,B,D', 1, 20);
+INSERT INTO `exam_answer` VALUES (7, 3, 1, NULL, 'B', 0, 0);
+INSERT INTO `exam_answer` VALUES (8, 3, 2, NULL, 'C', 0, 0);
+INSERT INTO `exam_answer` VALUES (9, 3, 3, NULL, 'A,B,D', 0, 0);
+INSERT INTO `exam_answer` VALUES (10, 4, 2, NULL, 'C', 0, 0);
+INSERT INTO `exam_answer` VALUES (11, 4, 6, NULL, 'B', 0, 0);
+INSERT INTO `exam_answer` VALUES (12, 4, 3, NULL, 'A,B,D', 0, 0);
+INSERT INTO `exam_answer` VALUES (13, 4, 8, NULL, 'false', 0, 0);
 
 -- ----------------------------
 -- Table structure for exam_record
@@ -136,13 +150,15 @@ CREATE TABLE `exam_record`  (
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'DOING' COMMENT '状态：DOING/FINISHED/ABSENT',
   `is_pass` tinyint(1) NULL DEFAULT 0 COMMENT '是否及格',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '考试记录表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '考试记录表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of exam_record
 -- ----------------------------
 INSERT INTO `exam_record` VALUES (1, 2, 2, 40, '2026-04-05 10:21:38', '2026-04-05 10:22:03', 'FINISHED', 1);
 INSERT INTO `exam_record` VALUES (2, 3, 2, 40, '2026-04-21 00:03:45', '2026-04-21 00:05:09', 'FINISHED', 1);
+INSERT INTO `exam_record` VALUES (3, 3, 5, 0, '2026-05-19 15:26:11', '2026-05-21 16:41:17', 'FINISHED', 0);
+INSERT INTO `exam_record` VALUES (4, 4, 5, 0, '2026-05-21 16:45:02', '2026-05-21 16:45:18', 'FINISHED', 0);
 
 -- ----------------------------
 -- Table structure for paper
@@ -163,14 +179,15 @@ CREATE TABLE `paper`  (
   `paper_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'MANUAL' COMMENT '组卷方式：MANUAL/RANDOM',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of paper
 -- ----------------------------
-INSERT INTO `paper` VALUES (2, '软件工程测试卷A（修改后）', NULL, 40, 90, 24, 1, 'PENDING', NULL, NULL, NULL, 'MANUAL', '2026-04-01 13:43:04');
-INSERT INTO `paper` VALUES (3, '随机测试卷A', NULL, 40, 60, 24, 1, 'PENDING', NULL, NULL, NULL, 'MANUAL', '2026-04-03 09:18:03');
-INSERT INTO `paper` VALUES (4, '测试试卷001', NULL, 120, 100, 60, 4, 'PENDING', NULL, NULL, NULL, 'MANUAL', '2026-04-26 01:05:03');
+INSERT INTO `paper` VALUES (2, '软件工程测试卷A（修改后）', NULL, 40, 90, 24, 1, 'APPROVED', 1, '2026-05-26 16:58:19', NULL, 'MANUAL', '2026-04-01 13:43:04');
+INSERT INTO `paper` VALUES (3, '随机测试卷A', NULL, 40, 60, 24, 1, 'APPROVED', 1, '2026-05-26 16:58:23', NULL, 'MANUAL', '2026-04-03 09:18:03');
+INSERT INTO `paper` VALUES (4, '测试试卷001', NULL, 120, 100, 60, 4, 'APPROVED', 1, '2026-05-26 16:58:28', NULL, 'MANUAL', '2026-04-26 01:05:03');
+INSERT INTO `paper` VALUES (5, '测试试卷002', NULL, 120, 90, 72, 4, 'PENDING', 1, '2026-05-26 17:53:15', '测试', 'MANUAL', '2026-05-26 14:59:32');
 
 -- ----------------------------
 -- Table structure for paper_question
@@ -182,7 +199,7 @@ CREATE TABLE `paper_question`  (
   `question_id` int NOT NULL COMMENT '题目ID',
   `score` int NOT NULL COMMENT '该题分值',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 82 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of paper_question
@@ -202,6 +219,18 @@ INSERT INTO `paper_question` VALUES (18, 4, 5, 20);
 INSERT INTO `paper_question` VALUES (19, 4, 6, 10);
 INSERT INTO `paper_question` VALUES (20, 4, 7, 20);
 INSERT INTO `paper_question` VALUES (21, 4, 8, 10);
+INSERT INTO `paper_question` VALUES (70, 5, 2, 10);
+INSERT INTO `paper_question` VALUES (71, 5, 4, 10);
+INSERT INTO `paper_question` VALUES (72, 5, 7, 10);
+INSERT INTO `paper_question` VALUES (73, 5, 14, 10);
+INSERT INTO `paper_question` VALUES (74, 5, 16, 10);
+INSERT INTO `paper_question` VALUES (75, 5, 17, 10);
+INSERT INTO `paper_question` VALUES (76, 5, 22, 10);
+INSERT INTO `paper_question` VALUES (77, 5, 23, 10);
+INSERT INTO `paper_question` VALUES (78, 5, 26, 10);
+INSERT INTO `paper_question` VALUES (79, 5, 27, 10);
+INSERT INTO `paper_question` VALUES (80, 5, 32, 10);
+INSERT INTO `paper_question` VALUES (81, 5, 36, 10);
 
 -- ----------------------------
 -- Table structure for question
@@ -226,49 +255,51 @@ CREATE TABLE `question`  (
   `reject_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '驳回原因',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 39 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 41 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of question
 -- ----------------------------
-INSERT INTO `question` VALUES (1, 'Java中哪个是基本数据类型？', 'String', 'int', 'List', 'Object', 'B', 'single', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-03-25 08:46:10');
-INSERT INTO `question` VALUES (2, '在SQL中，用于查询数据的关键字是？', 'INSERT', 'UPDATE', 'SELECT', 'DELETE', 'C', 'single', 1, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-03-25 09:18:24');
-INSERT INTO `question` VALUES (3, '以下哪些属于Java的基本数据类型？', 'int', 'double', 'String', 'boolean', 'A,B,D', 'multiple', 2, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-03-26 13:36:55');
-INSERT INTO `question` VALUES (4, 'Java是一种面向对象的编程语言。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-04-01 08:34:53');
-INSERT INTO `question` VALUES (5, '下列哪种数据结构属于线性结构？', '二叉树', '图', '数组', '堆', 'C', 'single', 2, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-04-01 08:38:06');
-INSERT INTO `question` VALUES (6, '在Java中，下列哪个关键字用于继承类？', 'implements', 'extends', 'import', 'package', 'B', 'single', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-04-01 08:38:25');
-INSERT INTO `question` VALUES (7, '以下哪些属于关系型数据库？', 'MySQL', 'Oracle', 'MongoDB', 'SQL Server', 'A,B,D', 'multiple', 2, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-04-01 08:41:54');
-INSERT INTO `question` VALUES (8, '数组是一种非线性数据结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-04-01 08:42:22');
-INSERT INTO `question` VALUES (9, 'Java中用于定义类的关键字是？', 'class', 'interface', 'extends', 'implements', 'A', 'single', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (10, 'Java中下列哪个关键字用于创建对象？', 'class', 'new', 'return', 'void', 'B', 'single', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (11, '以下哪些是Java的基本数据类型？', 'int', 'double', 'String', 'boolean', 'A,B,D', 'multiple', 2, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (12, '以下哪些关键字与Java面向对象特性有关？', 'extends', 'implements', 'select', 'private', 'A,B,D', 'multiple', 2, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (13, 'Java中的String属于基本数据类型。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (14, 'Java支持面向对象编程。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, NULL, 'Java基础', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (15, 'SQL中用于查询数据的语句是？', 'INSERT', 'UPDATE', 'SELECT', 'DELETE', 'C', 'single', 1, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (16, '数据库中用于唯一标识一条记录的字段通常称为？', '外键', '主键', '索引', '视图', 'B', 'single', 1, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (17, '以下哪些属于关系型数据库？', 'MySQL', 'Oracle', 'Redis', 'SQL Server', 'A,B,D', 'multiple', 2, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (18, '以下哪些SQL语句属于数据操作语言DML？', 'SELECT', 'INSERT', 'UPDATE', 'CREATE', 'A,B,C', 'multiple', 2, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (19, '主键字段可以用于唯一标识表中的记录。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (20, 'DELETE语句一定会删除整张表结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, NULL, '数据库', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (21, '下列哪种数据结构遵循先进先出原则？', '栈', '队列', '树', '图', 'B', 'single', 1, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (22, '下列哪种数据结构遵循后进先出原则？', '队列', '数组', '栈', '链表', 'C', 'single', 1, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (23, '以下哪些属于线性数据结构？', '数组', '链表', '栈', '二叉树', 'A,B,C', 'multiple', 2, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (24, '以下哪些可以用于存储多个元素？', '数组', '链表', '集合', '注释', 'A,B,C', 'multiple', 1, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (25, '栈是一种先进先出的数据结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (26, '二叉树是一种非线性数据结构。', NULL, NULL, NULL, NULL, 'true', 'judge', 2, NULL, '数据结构', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (27, 'HTTP协议主要工作在OSI参考模型的哪一层？', '物理层', '网络层', '传输层', '应用层', 'D', 'single', 2, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (28, 'IP地址主要用于标识网络中的什么？', '进程', '主机或设备', '文件', '数据库表', 'B', 'single', 1, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (29, '以下哪些协议属于应用层协议？', 'HTTP', 'FTP', 'DNS', 'IP', 'A,B,C', 'multiple', 2, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (30, '以下哪些属于常见网络设备？', '路由器', '交换机', '集线器', '编译器', 'A,B,C', 'multiple', 1, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (31, 'TCP是一种面向连接的传输层协议。', NULL, NULL, NULL, NULL, 'true', 'judge', 2, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (32, 'IP协议可以保证数据一定可靠到达。', NULL, NULL, NULL, NULL, 'false', 'judge', 2, NULL, '计算机网络', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (33, '软件生命周期中通常最先进行的阶段是？', '编码实现', '需求分析', '系统测试', '系统维护', 'B', 'single', 1, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (34, '黑盒测试主要关注什么？', '程序内部结构', '代码执行路径', '输入输出结果', '变量命名规范', 'C', 'single', 1, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (35, '以下哪些属于软件测试类型？', '单元测试', '集成测试', '系统测试', '物理测试', 'A,B,C', 'multiple', 1, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (36, '以下哪些内容通常属于需求分析阶段的工作？', '明确用户需求', '分析系统功能', '编写需求文档', '部署服务器硬件', 'A,B,C', 'multiple', 2, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (37, '软件测试只能在编码完成后进行。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
-INSERT INTO `question` VALUES (38, '需求分析对软件项目的后续设计和开发有重要影响。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, NULL, '软件工程', 1, 'PENDING', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (1, 'Java中哪个是基本数据类型？', 'String', 'int', 'List', 'Object', 'B', 'single', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-03-25 08:46:10');
+INSERT INTO `question` VALUES (2, '在SQL中，用于查询数据的关键字是？', 'INSERT', 'UPDATE', 'SELECT', 'DELETE', 'C', 'single', 1, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-03-25 09:18:24');
+INSERT INTO `question` VALUES (3, '以下哪些属于Java的基本数据类型？', 'int', 'double', 'String', 'boolean', 'A,B,D', 'multiple', 2, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-03-26 13:36:55');
+INSERT INTO `question` VALUES (4, 'Java是一种面向对象的编程语言。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-04-01 08:34:53');
+INSERT INTO `question` VALUES (5, '下列哪种数据结构属于线性结构？', '二叉树', '图', '数组', '堆', 'C', 'single', 2, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-04-01 08:38:06');
+INSERT INTO `question` VALUES (6, '在Java中，下列哪个关键字用于继承类？', 'implements', 'extends', 'import', 'package', 'B', 'single', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-04-01 08:38:25');
+INSERT INTO `question` VALUES (7, '以下哪些属于关系型数据库？', 'MySQL', 'Oracle', 'MongoDB', 'SQL Server', 'A,B,D', 'multiple', 2, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-04-01 08:41:54');
+INSERT INTO `question` VALUES (8, '数组是一种非线性数据结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-04-01 08:42:22');
+INSERT INTO `question` VALUES (9, 'Java中用于定义类的关键字是？', 'class', 'interface', 'extends', 'implements', 'A', 'single', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (10, 'Java中下列哪个关键字用于创建对象？', 'class', 'new', 'return', 'void', 'B', 'single', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (11, '以下哪些是Java的基本数据类型？', 'int', 'double', 'String', 'boolean', 'A,B,D', 'multiple', 2, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (12, '以下哪些关键字与Java面向对象特性有关？', 'extends', 'implements', 'select', 'private', 'A,B,D', 'multiple', 2, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (13, 'Java中的String属于基本数据类型。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (14, 'Java支持面向对象编程。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, 2, 'Java基础', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (15, 'SQL中用于查询数据的语句是？', 'INSERT', 'UPDATE', 'SELECT', 'DELETE', 'C', 'single', 1, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (16, '数据库中用于唯一标识一条记录的字段通常称为？', '外键', '主键', '索引', '视图', 'B', 'single', 1, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (17, '以下哪些属于关系型数据库？', 'MySQL', 'Oracle', 'Redis', 'SQL Server', 'A,B,D', 'multiple', 2, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (18, '以下哪些SQL语句属于数据操作语言DML？', 'SELECT', 'INSERT', 'UPDATE', 'CREATE', 'A,B,C', 'multiple', 2, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (19, '主键字段可以用于唯一标识表中的记录。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (20, 'DELETE语句一定会删除整张表结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, 4, '数据库', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (21, '下列哪种数据结构遵循先进先出原则？', '栈', '队列', '树', '图', 'B', 'single', 1, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (22, '下列哪种数据结构遵循后进先出原则？', '队列', '数组', '栈', '链表', 'C', 'single', 1, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (23, '以下哪些属于线性数据结构？', '数组', '链表', '栈', '二叉树', 'A,B,C', 'multiple', 2, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (24, '以下哪些可以用于存储多个元素？', '数组', '链表', '集合', '注释', 'A,B,C', 'multiple', 1, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (25, '栈是一种先进先出的数据结构。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (26, '二叉树是一种非线性数据结构。', NULL, NULL, NULL, NULL, 'true', 'judge', 2, 5, '数据结构', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (27, 'HTTP协议主要工作在OSI参考模型的哪一层？', '物理层', '网络层', '传输层', '应用层', 'D', 'single', 2, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (28, 'IP地址主要用于标识网络中的什么？', '进程', '主机或设备', '文件', '数据库表', 'B', 'single', 1, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (29, '以下哪些协议属于应用层协议？', 'HTTP', 'FTP', 'DNS', 'IP', 'A,B,C', 'multiple', 2, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (30, '以下哪些属于常见网络设备？', '路由器', '交换机', '集线器', '编译器', 'A,B,C', 'multiple', 1, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (31, 'TCP是一种面向连接的传输层协议。', NULL, NULL, NULL, NULL, 'true', 'judge', 2, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (32, 'IP协议可以保证数据一定可靠到达。', NULL, NULL, NULL, NULL, 'false', 'judge', 2, 6, '计算机网络', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (33, '软件生命周期中通常最先进行的阶段是？', '编码实现', '需求分析', '系统测试', '系统维护', 'B', 'single', 1, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (34, '黑盒测试主要关注什么？', '程序内部结构', '代码执行路径', '输入输出结果', '变量命名规范', 'C', 'single', 1, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (35, '以下哪些属于软件测试类型？', '单元测试', '集成测试', '系统测试', '物理测试', 'A,B,C', 'multiple', 1, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (36, '以下哪些内容通常属于需求分析阶段的工作？', '明确用户需求', '分析系统功能', '编写需求文档', '部署服务器硬件', 'A,B,C', 'multiple', 2, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (37, '软件测试只能在编码完成后进行。', NULL, NULL, NULL, NULL, 'false', 'judge', 1, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (38, '需求分析对软件项目的后续设计和开发有重要影响。', NULL, NULL, NULL, NULL, 'true', 'judge', 1, 7, '软件工程', 1, 'APPROVED', NULL, NULL, NULL, '2026-05-01 09:37:14');
+INSERT INTO `question` VALUES (39, 'Java中String是否是基本数据类型？', '是', '否', '不确定', '以上都不对', 'B', 'single', 1, 2, 'Java基础', 4, 'APPROVED', 1, '2026-05-26 14:53:26', NULL, '2026-05-26 14:52:03');
+INSERT INTO `question` VALUES (40, '测试题目', '正确', '错误', '错误', '错误', 'A', 'single', 1, 7, '软件工程', 4, 'PENDING', 1, '2026-05-26 15:19:51', '测试题目', '2026-05-26 15:11:28');
 
 -- ----------------------------
 -- Table structure for student_class
@@ -279,12 +310,14 @@ CREATE TABLE `student_class`  (
   `student_id` bigint NOT NULL COMMENT '学生ID',
   `class_id` int NOT NULL COMMENT '班级ID',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '学生-班级关系表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '学生-班级关系表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of student_class
 -- ----------------------------
 INSERT INTO `student_class` VALUES (2, 2, 2);
+INSERT INTO `student_class` VALUES (3, 5, 2);
+INSERT INTO `student_class` VALUES (4, 6, 2);
 
 -- ----------------------------
 -- Table structure for sys_user
@@ -299,7 +332,7 @@ CREATE TABLE `sys_user`  (
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `username`(`username` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of sys_user
@@ -307,6 +340,9 @@ CREATE TABLE `sys_user`  (
 INSERT INTO `sys_user` VALUES (1, 'admin', '123456', '管理员', 'ADMIN', '2026-03-24 09:02:21');
 INSERT INTO `sys_user` VALUES (2, 'student1', '654321', '学生一号', 'STUDENT', '2026-03-24 09:02:21');
 INSERT INTO `sys_user` VALUES (4, 'teacher1', '123456', '教师一号', 'TEACHER', '2026-04-04 08:52:38');
+INSERT INTO `sys_user` VALUES (5, 'student2', '123456', '学生二号', 'STUDENT', '2026-05-19 15:21:09');
+INSERT INTO `sys_user` VALUES (6, 'student3', '123456', '学生三号', 'STUDENT', '2026-05-26 13:00:55');
+INSERT INTO `sys_user` VALUES (7, 'teacher2', '123456', '教师2号', 'TEACHER', '2026-05-26 13:11:07');
 
 -- ----------------------------
 -- Table structure for teacher_course
@@ -317,11 +353,12 @@ CREATE TABLE `teacher_course`  (
   `teacher_id` bigint NOT NULL COMMENT '教师ID',
   `course_id` int NOT NULL COMMENT '课程ID',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '教师-课程关系表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '教师-课程关系表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of teacher_course
 -- ----------------------------
 INSERT INTO `teacher_course` VALUES (2, 4, 2);
+INSERT INTO `teacher_course` VALUES (3, 7, 6);
 
 SET FOREIGN_KEY_CHECKS = 1;

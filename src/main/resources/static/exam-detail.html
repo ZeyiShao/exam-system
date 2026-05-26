@@ -49,7 +49,7 @@
 <div class="container">
     <div class="card">
         <div class="actions">
-            <button class="btn btn-gray" onclick="goBack()">返回考试管理</button>
+            <button class="btn btn-gray" id="backBtn" onclick="goBack()">返回</button>
             <button class="btn btn-gray" onclick="goHome()">返回首页</button>
             <button class="btn btn-primary" id="editBtn" style="display:none;" onclick="goEdit()">编辑考试</button>
         </div>
@@ -102,6 +102,11 @@
         return params.get("id");
     }
 
+    function getFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("from");
+    }
+
     function showMessage(msg) {
         document.getElementById("message").textContent = msg || "";
     }
@@ -120,6 +125,13 @@
             (examDetail.auditStatus === "PENDING" || examDetail.auditStatus === "REJECTED")
         ) {
             window.location.href = "my-exam.html";
+            return;
+        }
+
+        const from = getFromUrl();
+
+        if (from === "review") {
+            window.location.href = "exam-review.html";
             return;
         }
 
@@ -410,6 +422,19 @@
 
         document.getElementById("userText").textContent =
             "当前用户：" + currentUser.realName + "（" + currentUser.role + "）";
+
+        const from = getFromUrl();
+        const backBtn = document.getElementById("backBtn");
+
+        if (backBtn) {
+            if (from === "review") {
+                backBtn.textContent = "返回考试审核";
+            } else if (currentUser.role === "TEACHER") {
+                backBtn.textContent = "返回我的考试";
+            } else {
+                backBtn.textContent = "返回考试管理";
+            }
+        }
 
         examId = getIdFromUrl();
 

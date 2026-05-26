@@ -101,7 +101,7 @@
                 <th style="width: 90px;">及格分</th>
                 <th style="width: 100px;">时长</th>
                 <th style="width: 110px;">组卷方式</th>
-                <th style="width: 100px;">创建人ID</th>
+                <th style="width: 160px;">创建人</th>
                 <th style="width: 160px;">创建时间</th>
                 <th style="width: 90px;">状态</th>
                 <th style="width: 130px;">操作</th>
@@ -118,6 +118,7 @@
 
 <script>
     let currentUser = null;
+    let userList = [];
 
     function checkLogin() {
         const user = getUser();
@@ -137,6 +138,28 @@
 
     function showMessage(msg) {
         document.getElementById("message").textContent = msg || "";
+    }
+
+    async function loadUserList() {
+        try {
+            const result = await get("/user/list");
+
+            if (result.code === 200) {
+                userList = result.data || [];
+            }
+        } catch (error) {
+            console.error("加载用户列表失败：", error);
+        }
+    }
+
+    function getUserName(id) {
+        const user = userList.find(item => Number(item.id) === Number(id));
+
+        if (!user) {
+            return "ID：" + (id ?? "");
+        }
+
+        return (user.realName || user.username || "") + "（ID：" + id + "）";
     }
 
     function formatTime(value) {
@@ -213,7 +236,7 @@
                     <td>${paper.passScore ?? ""}</td>
                     <td>${paper.duration ?? ""} 分钟</td>
                     <td>${getPaperTypeText(paper.paperType)}</td>
-                    <td>${paper.createUser ?? ""}</td>
+                    <td>${getUserName(paper.createUser)}</td>
                     <td>${formatTime(paper.createTime)}</td>
                     <td>${getStatusText(paper.status)}</td>
                     <td>
@@ -237,6 +260,7 @@
         document.getElementById("userText").textContent =
             "当前用户：" + (currentUser.realName || currentUser.username || "") + "（管理员）";
 
+        await loadUserList();
         await loadReviewList();
     }
 

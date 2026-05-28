@@ -122,7 +122,7 @@ public class QuestionServiceImpl implements QuestionService {
         LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Question::getStatus, STATUS_APPROVED);
 
-        // 课程筛选：方案B使用 courseId，不再使用 course 字符串筛选
+        // 课程筛选：使用 courseId
         if (courseId != null) {
             queryWrapper.eq(Question::getCourseId, courseId);
         }

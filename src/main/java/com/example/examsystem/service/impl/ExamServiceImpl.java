@@ -453,14 +453,14 @@ public class ExamServiceImpl implements ExamService {
             Integer questionScore = paperQuestionMapper.getScoreByPaperIdAndQuestionId(exam.getPaperId(), question.getId());
             if (questionScore == null) {
                 questionScore = 0;
-            }
+            }//获取每道题分值
 
             if (isCorrect) {
                 score = questionScore;
                 totalScore += score;
-            }
+            }//获取每道题分值
 
-            ExamAnswer examAnswer = new ExamAnswer();
+            ExamAnswer examAnswer = new ExamAnswer();//保存答题记录
             examAnswer.setRecordId(record.getId());
             examAnswer.setQuestionId(question.getId());
             examAnswer.setUserAnswer(userAnswer);
@@ -474,7 +474,7 @@ public class ExamServiceImpl implements ExamService {
         record.setScore(totalScore);
         record.setSubmitTime(LocalDateTime.now());
         record.setStatus("FINISHED");
-        record.setIsPass(totalScore >= paper.getPassScore());
+        record.setIsPass(totalScore >= paper.getPassScore());//更新考试记录总分和状态
 
         examRecordMapper.updateById(record);
     }

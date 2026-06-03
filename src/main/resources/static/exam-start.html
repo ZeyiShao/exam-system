@@ -508,7 +508,7 @@
 
             return {
                 questionId: Number(questionId),
-                answer: answer || ""
+                userAnswer: answer || ""
             };
         });
 
@@ -556,6 +556,10 @@
             }
 
             localStorage.removeItem(getAnswerStorageKey());
+
+            if (currentUser) {
+                localStorage.setItem("user", JSON.stringify(currentUser));
+            }
 
             localStorage.setItem("examSubmitResult", JSON.stringify(result.data || {}));
             localStorage.setItem("lastExamDetail", JSON.stringify({
